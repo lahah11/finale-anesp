@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { authService } from '@/services/authService';
+import { dictionary, SupportedLanguage } from '@/i18n/dictionary';
 
 interface User {
   id: string;
@@ -23,6 +24,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+interface LanguageContextType {
+  language: SupportedLanguage;
+  setLanguage: (lang: SupportedLanguage) => void;
+  t: (key: string) => string;
+  direction: 'ltr' | 'rtl';
+}
+
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -31,9 +41,18 @@ export function useAuth() {
   return context;
 }
 
+export function useTranslation() {
+  const context = useContext(LanguageContext);
+  if (context === undefined) {
+    throw new Error('useTranslation must be used within a LanguageProvider');
+  }
+  return context;
+}
+
 export function Providers({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [language, setLanguage] = useState<SupportedLanguage>('fr');
 
   useEffect(() => {
     const initAuth = async () => {
@@ -54,6 +73,21 @@ export function Providers({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
+  useEffect(() => {
+    const storedLanguage = typeof window !== 'undefined' ? window.localStorage.getItem('anesp-lang') : null;
+    if (storedLanguage === 'fr' || storedLanguage === 'ar') {
+      setLanguage(storedLanguage);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('anesp-lang', language);
+      document.documentElement.lang = language;
+      document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    }
+  }, [language]);
+
   const login = async (username: string, password: string) => {
     const response = await authService.login(username, password);
     setUser(response.user);
@@ -71,33 +105,47 @@ export function Providers({ children }: { children: ReactNode }) {
     loading
   };
 
+  const languageContextValue = useMemo(() => {
+    const translations = dictionary[language];
+    const t = (key: string) => translations[key] || key;
+    return {
+      language,
+      setLanguage,
+      t,
+      direction: language === 'ar' ? 'rtl' : 'ltr'
+    };
+  }, [language]);
+
   return (
-    <AuthContext.Provider value={value}>
-      {children}
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#006233',
-              secondary: '#fff',
+    <LanguageContext.Provider value={languageContextValue}>
+      <AuthContext.Provider value={value}>
+        {children}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+              direction: languageContextValue.direction
             },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#006233',
+                secondary: '#fff',
+              },
             },
-          },
-        }}
-      />
-    </AuthContext.Provider>
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+      </AuthContext.Provider>
+    </LanguageContext.Provider>
   );
 }

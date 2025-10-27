@@ -13,12 +13,6 @@ export const missionService = {
     return response.data;
   },
 
-  // Obtenir les missions par institution
-  getByInstitution: async () => {
-    const response = await api.get('/missions');
-    return response.data;
-  },
-
   // Obtenir une mission par ID (avec option anti-cache)
   getById: async (id: string, opts?: { noCache?: boolean }) => {
     const headers = opts?.noCache
@@ -39,24 +33,11 @@ export const missionService = {
   },
 
   // Attribution des moyens logistiques
-  assignLogistics: async (id: string, vehicleId: string, driverId: string) => {
-    const response = await api.put(`/missions/${id}/assign-logistics`, {
-      vehicle_id: vehicleId,
-      driver_id: driverId
-    });
+  assignLogistics: async (id: string, payload: Record<string, unknown>) => {
+    const response = await api.put(`/missions/${id}/assign-logistics`, payload);
     return response.data;
   },
 
-  // Validation financière
-  validateFinance: async (id: string, action: string, rejectionReason?: string) => {
-    const response = await api.put(`/missions/${id}/validate-finance`, {
-      action,
-      rejection_reason: rejectionReason
-    });
-    return response.data;
-  },
-
-  // Validation financière
   validateFinance: async (id: string, action: string, rejectionReason?: string) => {
     const response = await api.put(`/missions/${id}/validate-finance`, {
       action,
@@ -74,9 +55,28 @@ export const missionService = {
     return response.data;
   },
 
+  closeMission: async (id: string, data: any) => {
+    const response = await api.put(`/missions/${id}/close`, data);
+    return response.data;
+  },
+
+  getMissionHistory: async (id: string) => {
+    const response = await api.get(`/missions/${id}/history`);
+    return response.data;
+  },
+
   // Obtenir les participants d'une mission
   getParticipants: async (id: string) => {
     const response = await api.get(`/missions/${id}/participants`);
+    return response.data;
+  },
+
+  uploadDocuments: async (id: string, formData: FormData) => {
+    const response = await api.post(`/missions/${id}/upload-documents`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data;
   },
 
@@ -110,23 +110,10 @@ export const missionService = {
     return response.data;
   },
 
-  // Télécharger un document
   downloadDocument: async (missionId: string, documentId: string) => {
     const response = await api.get(`/missions/${missionId}/documents/${documentId}/download`, {
       responseType: 'blob'
     });
-    return response.data;
-  },
-
-  // Validation par le Directeur Général
-  validateMission: async (id: string, data: any) => {
-    const response = await api.put(`/missions/${id}/validate-dg`, data);
-    return response.data;
-  },
-
-  // Refus de mission
-  rejectMission: async (id: string, data: any) => {
-    const response = await api.put(`/missions/${id}/reject`, data);
     return response.data;
   }
 };

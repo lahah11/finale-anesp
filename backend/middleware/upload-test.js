@@ -34,8 +34,11 @@ const uploadMissionDocuments = uploadTest.fields([
   { name: 'stamped_mission_orders', maxCount: 1 }
 ]);
 
+const uploadMissionTicket = uploadTest.single('ticket');
+
 module.exports = {
-  uploadMissionDocuments
+  uploadMissionDocuments,
+  uploadMissionTicket
 };
 
 

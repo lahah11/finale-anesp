@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/app/providers';
+import { useAuth, useTranslation } from '@/app/providers';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Sidebar from './Sidebar';
@@ -14,6 +14,7 @@ export default function DashboardLayout({
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { direction } = useTranslation();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -30,7 +31,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-100">
+    <div className="h-screen flex overflow-hidden bg-gray-100" dir={direction}>
       <Sidebar />
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
         <Header />

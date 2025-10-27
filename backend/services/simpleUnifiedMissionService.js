@@ -1,542 +1,580 @@
 const { query } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 
+const STATUSES = {
+  PENDING_TECHNICAL: 'pending_technical',
+  PENDING_LOGISTICS: 'pending_logistics',
+  PENDING_FINANCE: 'pending_finance',
+  PENDING_DG: 'pending_dg',
+  VALIDATED: 'validated',
+  AWAITING_CLOSURE: 'awaiting_closure',
+  CLOSED: 'closed',
+  REJECTED_TECHNICAL: 'rejected_technical',
+  REJECTED_FINANCE: 'rejected_finance',
+  REJECTED_FINAL: 'rejected_final'
+};
+
+const VALIDATION_STEPS = {
+  CREATION: 'creation',
+  TECHNICAL: 'technical_validation',
+  LOGISTICS: 'logistics_assignment',
+  FINANCE: 'finance_validation',
+  FINAL: 'final_validation',
+  DOCUMENT_UPLOAD: 'document_upload',
+  CLOSURE: 'closure_verification'
+};
+
+const parseJSON = (value, fallback = null) => {
+  try {
+    if (!value) {
+      return fallback;
+    }
+    return JSON.parse(value);
+  } catch (error) {
+    return fallback;
+  }
+};
+
+const recordAudit = async (missionId, userId, action, details = {}) => {
+  console.log(`[AUDIT] mission=${missionId} action=${action} user=${userId}`, details);
+  await query(
+    `INSERT INTO audit_logs (id, entity_type, entity_id, action, performed_by, payload, created_at)
+     VALUES (?, 'mission', ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [uuidv4(), missionId, action, userId, JSON.stringify(details || {})]
+  );
+};
+
+const appendHistory = async (missionId, entry) => {
+  const current = await query('SELECT validation_history FROM missions_unified WHERE id = ?', [missionId]);
+  const history = parseJSON(current.rows[0]?.validation_history, []);
+  const nextHistory = [...history, { ...entry, timestamp: entry.timestamp || new Date().toISOString() }];
+  await query('UPDATE missions_unified SET validation_history = ? WHERE id = ?', [JSON.stringify(nextHistory), missionId]);
+  return nextHistory;
+};
+
+const updateMission = async (missionId, updates) => {
+  if (!updates || Object.keys(updates).length === 0) {
+    return null;
+  }
+
+  const fields = [];
+  const values = [];
+  Object.entries(updates).forEach(([key, value]) => {
+    fields.push(`${key} = ?`);
+    values.push(value);
+  });
+  values.push(missionId);
+
+  await query(
+    `UPDATE missions_unified SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    values
+  );
+
+  return SimpleUnifiedMissionService.getMissionById(missionId);
+};
+
+const getMissionReference = async (institutionId) => {
+  const year = new Date().getFullYear();
+  const result = await query(
+    `SELECT COUNT(*) AS total
+     FROM missions_unified
+     WHERE institution_id = ? AND strftime('%Y', created_at) = ?`,
+    [institutionId, String(year)]
+  );
+  const count = parseInt(result.rows?.[0]?.total || 0, 10) + 1;
+  return `${year}-${institutionId}-${count.toString().padStart(4, '0')}`;
+};
+
+const findValidatorId = async (institutionId, roleCode) => {
+  const result = await query(
+    `SELECT u.id
+     FROM users u
+     JOIN institution_roles ir ON u.institution_role_id = ir.id
+     WHERE u.institution_id = ?
+       AND ir.role_code = ?
+       AND u.is_active = 1
+     ORDER BY u.created_at DESC
+     LIMIT 1`,
+    [institutionId, roleCode]
+  );
+  return result.rows?.[0]?.id || null;
+};
+
 const SimpleUnifiedMissionService = {
-  // Générer une référence de mission automatique
-  generateMissionReference: async (institutionId) => {
-    const year = new Date().getFullYear();
-    let count = 1;
-    let reference;
-    let exists = true;
-    
-    // Chercher une référence unique
-    while (exists) {
-      reference = `MIS-${year}-${count.toString().padStart(4, '0')}`;
-      const result = await query(
-        'SELECT COUNT(*) as count FROM missions_unified WHERE mission_reference = ?',
-        [reference]
-      );
-      exists = result.rows[0].count > 0;
-      if (exists) count++;
-    }
-    
-    return reference;
-  },
-
-  // Créer une nouvelle mission dans la table unifiée (version simplifiée)
   createMission: async (missionData, userId, institutionId) => {
-    try {
-      console.log('🚀 Création de mission dans missions_unified (version simplifiée)...');
-      console.log('📤 Données reçues:', {
-        mission_object: missionData.mission_object,
-        departure_city: missionData.departure_city,
-        departure_city_name: missionData.departure_city_name,
-        arrival_city: missionData.arrival_city,
-        arrival_city_name: missionData.arrival_city_name,
-        participants: missionData.participants?.length || 0
-      });
+    const missionId = uuidv4();
+    const missionReference = await getMissionReference(institutionId);
 
-      const missionReference = await SimpleUnifiedMissionService.generateMissionReference(institutionId);
-      
-      // Utiliser les valeurs saisies par l'ingénieur
-      const estimatedFuel = missionData.estimated_fuel || 0;
-      const missionFees = missionData.mission_fees || 0;
+    const {
+      mission_object,
+      mission_description,
+      departure_date,
+      return_date,
+      departure_city,
+      departure_city_name,
+      arrival_city,
+      arrival_city_name,
+      transport_mode,
+      mission_type,
+      participants = [],
+      budget_code,
+      mission_budget,
+      mission_currency,
+      project_reference,
+      notes
+    } = missionData;
 
-      // Insérer la mission avec toutes les informations
-      const missionId = require('crypto').randomUUID();
-      
-      // Préparer les données des participants en JSON
-      const participantsJson = JSON.stringify(missionData.participants || []);
-      const participantsCount = missionData.participants?.length || 0;
-      
-      // Récupérer les informations des villes
-      let departureCityRegion = null;
-      let arrivalCityRegion = null;
-      
-      if (missionData.departure_city) {
-        try {
-          const depCityResult = await query('SELECT region FROM cities WHERE id = ?', [missionData.departure_city]);
-          departureCityRegion = depCityResult.rows[0]?.region || null;
-          console.log(`✅ Région de départ récupérée: ${departureCityRegion}`);
-        } catch (e) {
-          console.warn('⚠️ Impossible de récupérer la région de départ:', e.message);
-        }
-      }
-      
-      if (missionData.arrival_city) {
-        try {
-          const arrCityResult = await query('SELECT region FROM cities WHERE id = ?', [missionData.arrival_city]);
-          arrivalCityRegion = arrCityResult.rows[0]?.region || null;
-          console.log(`✅ Région d'arrivée récupérée: ${arrivalCityRegion}`);
-        } catch (e) {
-          console.warn('⚠️ Impossible de récupérer la région d\'arrivée:', e.message);
-        }
-      }
-      
-      // Calculer les coûts totaux
-      const totalMissionCost = missionData.total_mission_cost || missionFees;
-      const fuelCost = missionData.fuel_cost || (estimatedFuel * 200); // 200 MRU par litre
-      const participantsCost = missionData.participants_cost || 0;
-      
-      // Insérer dans la table unifiée avec seulement les colonnes essentielles
+    await query(
+      `INSERT INTO missions_unified (
+         id,
+         institution_id,
+         mission_reference,
+         mission_object,
+         mission_description,
+         departure_date,
+         return_date,
+         departure_city,
+         departure_city_name,
+         arrival_city,
+         arrival_city_name,
+         transport_mode,
+         mission_type,
+         budget_code,
+         mission_budget,
+         mission_currency,
+         project_reference,
+         status,
+         current_step,
+         created_by,
+         created_at,
+         validation_history
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)`
+      , [
+        missionId,
+        institutionId,
+        missionReference,
+        mission_object,
+        mission_description || null,
+        departure_date,
+        return_date,
+        departure_city || null,
+        departure_city_name || null,
+        arrival_city || null,
+        arrival_city_name || null,
+        transport_mode,
+        mission_type || 'standard',
+        budget_code || null,
+        mission_budget || null,
+        mission_currency || 'MRU',
+        project_reference || null,
+        STATUSES.PENDING_TECHNICAL,
+        1,
+        userId,
+        JSON.stringify([
+          {
+            step: VALIDATION_STEPS.CREATION,
+            actor: userId,
+            status: 'submitted',
+            notes: notes || null,
+            timestamp: new Date().toISOString()
+          }
+        ])
+      ]
+    );
+
+    for (const participant of participants) {
       await query(
-        `INSERT INTO missions_unified (
-          id, mission_reference, institution_id, created_by, mission_object,
-          departure_date, return_date, transport_mode,
-          departure_city_id, departure_city_name, departure_city_region,
-          arrival_city_id, arrival_city_name, arrival_city_region,
-          participants_data, participants_count,
-          estimated_fuel, fuel_cost, participants_cost, total_mission_cost, mission_fees,
-          status, current_step
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          missionId, missionReference, institutionId, userId, missionData.mission_object,
-          missionData.departure_date, missionData.return_date, missionData.transport_mode,
-          missionData.departure_city, missionData.departure_city_name, departureCityRegion,
-          missionData.arrival_city, missionData.arrival_city_name, arrivalCityRegion,
-          participantsJson, participantsCount,
-          estimatedFuel, fuelCost, participantsCost, totalMissionCost, missionFees,
-          'pending_technical', 2
+        `INSERT INTO mission_participants (
+           id,
+           mission_id,
+           participant_type,
+           employee_id,
+           full_name,
+           role_in_mission,
+           external_email,
+           created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        , [
+          uuidv4(),
+          missionId,
+          participant.participant_type || 'anesp',
+          participant.employee_id || null,
+          participant.full_name || participant.external_name || null,
+          participant.role_in_mission || null,
+          participant.external_email || null
         ]
       );
-      
-      console.log('✅ Mission créée dans missions_unified avec succès');
-      
-      // Récupérer la mission créée
-      const missionResult = await query('SELECT * FROM missions_unified WHERE id = ?', [missionId]);
-      const mission = missionResult.rows[0];
-
-      // Insérer les participants dans mission_participants
-      const participants = [];
-      for (const participant of missionData.participants || []) {
-        const participantId = require('crypto').randomUUID();
-        await query(
-          `INSERT INTO mission_participants (
-            id, mission_id, participant_type, employee_id, external_name, 
-            external_firstname, external_nni, external_profession, 
-            external_ministry, external_phone, external_email, 
-            role_in_mission, daily_allowance, accommodation_allowance, 
-            transport_allowance, total_allowance
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            participantId, mission.id, participant.participant_type, participant.employee_id,
-            participant.external_name, participant.external_firstname,
-            participant.external_nni, participant.external_profession,
-            participant.external_ministry, participant.external_phone,
-            participant.external_email, participant.role_in_mission,
-            participant.daily_allowance, participant.accommodation_allowance,
-            participant.transport_allowance, participant.total_allowance
-          ]
-        );
-        
-        // Récupérer le participant créé
-        const participantResult = await query('SELECT * FROM mission_participants WHERE id = ?', [participantId]);
-        participants.push(participantResult.rows[0]);
-      }
-
-      // Trouver le Directeur Technique pour la validation
-      const technicalValidator = await query(
-        'SELECT id FROM users WHERE institution_id = ? AND institution_role_id IN (SELECT id FROM institution_roles WHERE role_code = ?)',
-        [institutionId, 'directeur_technique']
-      );
-
-      console.log('🎉 Mission créée avec succès dans missions_unified');
-      console.log(`   - ID: ${mission.id}`);
-      console.log(`   - Référence: ${mission.mission_reference}`);
-      console.log(`   - Villes: ${mission.departure_city_name} → ${mission.arrival_city_name}`);
-      console.log(`   - Participants: ${participants.length}`);
-
-      return {
-        mission,
-        participants,
-        missionId: mission.id,
-        missionReference: mission.mission_reference,
-        technical_validator_id: technicalValidator.rows[0]?.id
-      };
-    } catch (error) {
-      console.error('❌ Erreur création mission unifiée:', error);
-      throw error;
     }
+
+    await recordAudit(missionId, userId, 'mission_created', { mission_reference: missionReference });
+
+    const mission = await SimpleUnifiedMissionService.getMissionById(missionId);
+    const nextValidatorId = await findValidatorId(institutionId, 'directeur_technique');
+
+    return { mission, missionReference, nextValidatorId };
   },
 
-  // Récupérer une mission par ID
+  getMissionsByUser: async (userId, userRole, institutionId) => {
+    const params = [institutionId];
+    let sql =
+      `SELECT DISTINCT m.*
+       FROM missions_unified m
+       LEFT JOIN mission_participants mp ON mp.mission_id = m.id
+       WHERE m.institution_id = ?`;
+
+    if (userRole !== 'super_admin') {
+      sql += ' AND (m.created_by = ? OR mp.employee_id = ?)';
+      params.push(userId, userId);
+    }
+
+    sql += ' ORDER BY m.created_at DESC';
+    const result = await query(sql, params);
+    return result.rows || [];
+  },
+
   getMissionById: async (missionId) => {
-    try {
-      const result = await query('SELECT * FROM missions_unified WHERE id = ?', [missionId]);
-      return result.rows[0] || null;
-    } catch (error) {
-      console.error('❌ Erreur récupération mission:', error);
-      throw error;
+    const missionResult = await query('SELECT * FROM missions_unified WHERE id = ? LIMIT 1', [missionId]);
+    if (!missionResult.rows?.length) {
+      return null;
     }
+
+    const mission = missionResult.rows[0];
+    mission.validation_history = parseJSON(mission.validation_history, []);
+    mission.budget_summary = parseJSON(mission.budget_summary, null);
+    mission.mission_requirements = parseJSON(mission.mission_requirements, null);
+    mission.participants = await SimpleUnifiedMissionService.getMissionParticipants(missionId);
+    return mission;
   },
 
-  // Récupérer les missions selon le rôle de l'utilisateur
-  getMissionsByUser: async (userId, userRole, institutionId, institutionRoleId) => {
-    try {
-      console.log('📋 Récupération des missions depuis missions_unified...');
-      
-      let sql = `
-        SELECT m.*, u.username as created_by_name,
-               COUNT(mp.id) as participant_count
-        FROM missions_unified m
-        LEFT JOIN users u ON m.created_by = u.id
-        LEFT JOIN mission_participants mp ON m.id = mp.mission_id
-        WHERE m.institution_id = ?
-      `;
-      let params = [institutionId];
-
-      // Filtrer selon le rôle et l'institution_role_id
-      if (userRole === 'agent' && institutionRoleId !== 'role-daf') {
-        sql += ' AND m.created_by = ?';
-        params.push(userId);
-      } else if (userRole === 'admin_local') {
-        sql += ' AND m.status IN (?, ?)';
-        params.push('pending_technical', 'validated');
-      } else if (userRole === 'msgg') {
-        sql += ' AND m.status IN (?, ?)';
-        params.push('pending_logistics', 'validated');
-      } else if (userRole === 'dg' || institutionRoleId === 'role-daf') {
-        // Le rôle 'dg' ou l'institution_role_id 'role-daf' peut voir les missions en attente de validation financière ET finale
-        sql += ' AND m.status IN (?, ?, ?, ?)';
-        params.push('pending_logistics', 'pending_finance', 'pending_dg', 'validated');
-      } else if (userRole === 'super_admin') {
-        // Super admin voit toutes les missions
-        // Pas de filtre supplémentaire
-      } else {
-        // Par défaut, voir toutes les missions pour les autres rôles
-        console.log(`⚠️ Rôle non reconnu: ${userRole}, institution_role_id: ${institutionRoleId}`);
-      }
-
-      sql += ' GROUP BY m.id ORDER BY m.created_at DESC';
-
-      const result = await query(sql, params);
-      console.log(`✅ ${result.rows.length} mission(s) récupérée(s) depuis missions_unified`);
-      return result.rows;
-    } catch (error) {
-      console.error('Get missions by user error:', error);
-      throw error;
-    }
+  getMissionStatus: async (missionId) => {
+    const result = await query(
+      'SELECT id, mission_reference, status, current_step FROM missions_unified WHERE id = ? LIMIT 1',
+      [missionId]
+    );
+    return result.rows?.[0] || null;
   },
 
-  // Validation technique
-  validateTechnical: async (missionId, userId, action, rejectionReason) => {
-    try {
-      console.log('🔧 Validation technique dans missions_unified...');
-      console.log(`   - Mission ID: ${missionId}`);
-      console.log(`   - User ID: ${userId}`);
-      console.log(`   - Action: ${action}`);
-      console.log(`   - Rejection reason: ${rejectionReason || 'N/A'}`);
-      
-      const updateData = {
-        technical_validated_by: userId,
-        technical_validated_at: new Date().toISOString(),
-        current_step: action === 'approve' ? 3 : 1
-      };
-
-      if (action === 'reject') {
-        updateData.status = 'rejected';
-        updateData.technical_rejection_reason = rejectionReason;
-      } else {
-        updateData.status = 'pending_logistics';
-      }
-
-      console.log('📊 Données de mise à jour:');
-      console.log(`   - Statut: ${updateData.status}`);
-      console.log(`   - Étape: ${updateData.current_step}`);
-      console.log(`   - Validé par: ${updateData.technical_validated_by}`);
-      console.log(`   - Validé le: ${updateData.technical_validated_at}`);
-
-      // Vérifier que la mission existe avant la mise à jour
-      const checkMission = await query('SELECT id, mission_reference, status, current_step FROM missions_unified WHERE id = ?', [missionId]);
-      if (!checkMission.rows || checkMission.rows.length === 0) {
-        throw new Error(`Mission ${missionId} not found`);
-      }
-      
-      console.log('✅ Mission trouvée avant mise à jour:');
-      console.log(`   - Référence: ${checkMission.rows[0].mission_reference}`);
-      console.log(`   - Statut actuel: ${checkMission.rows[0].status}`);
-      console.log(`   - Étape actuelle: ${checkMission.rows[0].current_step}`);
-
-      // Mettre à jour la table missions_unified
-      console.log('🔄 Exécution de la requête UPDATE...');
-      const updateResult = await query(
-        `UPDATE missions_unified SET 
-         technical_validated_by = ?, technical_validated_at = ?, 
-         status = ?, current_step = ?, technical_rejection_reason = ?
-         WHERE id = ?`,
-        [
-          updateData.technical_validated_by,
-          updateData.technical_validated_at,
-          updateData.status,
-          updateData.current_step,
-          updateData.technical_rejection_reason,
-          missionId
-        ]
-      );
-      
-      console.log(`✅ Requête UPDATE exécutée. Rows affected: ${updateResult.rowsAffected || 'N/A'}`);
-      
-      // Récupérer la mission mise à jour depuis missions_unified
-      console.log('📋 Récupération de la mission mise à jour...');
-      const result = await query('SELECT * FROM missions_unified WHERE id = ?', [missionId]);
-
-      if (!result.rows || result.rows.length === 0) {
-        throw new Error('Mission not found after validation');
-      }
-
-      console.log('✅ Mission mise à jour récupérée:');
-      console.log(`   - Référence: ${result.rows[0].mission_reference}`);
-      console.log(`   - Nouveau statut: ${result.rows[0].status}`);
-      console.log(`   - Nouvelle étape: ${result.rows[0].current_step}`);
-      console.log(`   - Validé par: ${result.rows[0].technical_validated_by}`);
-      console.log(`   - Validé le: ${result.rows[0].technical_validated_at}`);
-
-      // Trouver le responsable des moyens généraux
-      console.log('🔍 Recherche du responsable des moyens généraux...');
-      const logisticsValidator = await query(
-        'SELECT id FROM users WHERE institution_id = (SELECT institution_id FROM missions_unified WHERE id = ?) AND institution_role_id IN (SELECT id FROM institution_roles WHERE role_code = ?)',
-        [missionId, 'role-service_moyens_generaux']
-      );
-
-      console.log(`✅ Responsable logistique trouvé: ${logisticsValidator.rows[0]?.id || 'NON TROUVÉ'}`);
-
-      console.log('✅ Validation technique mise à jour dans missions_unified');
-      return {
-        mission: result.rows[0],
-        next_validator_id: logisticsValidator.rows[0]?.id
-      };
-    } catch (error) {
-      console.error('❌ Technical validation error:', error);
-      throw error;
-    }
+  getMissionParticipants: async (missionId) => {
+    const result = await query(
+      `SELECT id, participant_type, employee_id, full_name, role_in_mission, external_email
+       FROM mission_participants
+       WHERE mission_id = ?
+       ORDER BY created_at ASC`,
+      [missionId]
+    );
+    return result.rows || [];
   },
 
-  // Attribution logistique
-  assignLogistics: async (missionId, userId, vehicleId, driverId, logisticsData) => {
-    try {
-      console.log('🚗 Attribution logistique dans missions_unified...');
-      
-      const updateData = {
-        logistics_validated_by: userId,
-        logistics_validated_at: new Date().toISOString(),
-        assigned_vehicle_id: vehicleId,
-        assigned_driver_id: driverId,
-        vehicle_plate: logisticsData.vehicle_plate,
-        vehicle_model: logisticsData.vehicle_model,
-        vehicle_brand: logisticsData.vehicle_brand,
-        driver_name: logisticsData.driver_name,
-        driver_phone: logisticsData.driver_phone,
-        driver_license: logisticsData.driver_license,
-        status: 'pending_finance',
-        current_step: 4
-      };
-
-      // Mettre à jour la table missions_unified
-      await query(
-        `UPDATE missions_unified SET 
-         logistics_validated_by = ?, logistics_validated_at = ?, 
-         vehicle_id = ?, driver_id = ?,
-         vehicle_plate = ?, vehicle_model = ?, vehicle_brand = ?,
-         driver_name = ?, driver_phone = ?, driver_license = ?,
-         status = ?, current_step = ?
-         WHERE id = ?`,
-        [
-          updateData.logistics_validated_by,
-          updateData.logistics_validated_at,
-          updateData.assigned_vehicle_id,
-          updateData.assigned_driver_id,
-          updateData.vehicle_plate,
-          updateData.vehicle_model,
-          updateData.vehicle_brand,
-          updateData.driver_name,
-          updateData.driver_phone,
-          updateData.driver_license,
-          updateData.status,
-          updateData.current_step,
-          missionId
-        ]
-      );
-      
-      // Récupérer la mission mise à jour depuis missions_unified
-      const result = await query('SELECT * FROM missions_unified WHERE id = ?', [missionId]);
-
-      // Trouver le responsable financier (DAF)
-      const financeValidator = await query(
-        'SELECT id FROM users WHERE institution_id = (SELECT institution_id FROM missions_unified WHERE id = ?) AND institution_role_id IN (SELECT id FROM institution_roles WHERE role_code = ?)',
-        [missionId, 'role-daf']
-      );
-
-      console.log('✅ Attribution logistique mise à jour dans missions_unified');
-      return {
-        mission: result.rows[0],
-        next_validator_id: financeValidator.rows[0]?.id
-      };
-    } catch (error) {
-      console.error('Logistics assignment error:', error);
-      throw error;
-    }
+  getAvailableVehicles: async (institutionId) => {
+    const result = await query(
+      `SELECT * FROM vehicles WHERE institution_id = ? AND is_available = 1 ORDER BY name`,
+      [institutionId]
+    );
+    return result.rows || [];
   },
 
-  // Validation financière
-  validateFinance: async (missionId, userId, action, rejectionReason) => {
-    try {
-      console.log('💰 Validation financière dans missions_unified...');
-      console.log(`   - Mission ID: ${missionId}`);
-      console.log(`   - User ID: ${userId}`);
-      console.log(`   - Action: ${action}`);
-      console.log(`   - Rejection reason: ${rejectionReason || 'N/A'}`);
-      
-      const updateData = {
-        finance_validated_by: userId,
-        finance_validated_at: new Date().toISOString(),
-        current_step: action === 'approve' ? 5 : 1
-      };
-
-      if (action === 'reject') {
-        updateData.status = 'rejected';
-        updateData.finance_rejection_reason = rejectionReason;
-      } else {
-        updateData.status = 'pending_dg';
-      }
-
-      console.log('📊 Données de mise à jour:');
-      console.log(`   - Statut: ${updateData.status}`);
-      console.log(`   - Étape: ${updateData.current_step}`);
-      console.log(`   - Validé par: ${updateData.finance_validated_by}`);
-      console.log(`   - Validé le: ${updateData.finance_validated_at}`);
-
-      // Vérifier que la mission existe avant la mise à jour
-      const checkMission = await query('SELECT id, mission_reference, status, current_step FROM missions_unified WHERE id = ?', [missionId]);
-      if (!checkMission.rows || checkMission.rows.length === 0) {
-        throw new Error(`Mission ${missionId} not found`);
-      }
-      
-      console.log('✅ Mission trouvée avant mise à jour:');
-      console.log(`   - Référence: ${checkMission.rows[0].mission_reference}`);
-      console.log(`   - Statut actuel: ${checkMission.rows[0].status}`);
-      console.log(`   - Étape actuelle: ${checkMission.rows[0].current_step}`);
-
-      // Mettre à jour la table missions_unified
-      console.log('🔄 Exécution de la requête UPDATE...');
-      const updateResult = await query(
-        `
-        UPDATE missions_unified SET 
-          finance_validated_by = ?, 
-          finance_validated_at = ?, 
-          status = ?, 
-          current_step = ?, 
-          finance_rejection_reason = ?
-        WHERE id = ?
-        `,
-        [
-          updateData.finance_validated_by,
-          updateData.finance_validated_at,
-          updateData.status,
-          updateData.current_step,
-          updateData.finance_rejection_reason,
-          missionId
-        ]
-      );
-
-      console.log('✅ Mise à jour exécutée:');
-      console.log(`   - Lignes affectées: ${updateResult.changes}`);
-
-      // Récupérer la mission mise à jour
-      const result = await query('SELECT * FROM missions_unified WHERE id = ?', [missionId]);
-
-      // Trouver le DG
-      const dgValidator = await query(
-        'SELECT id FROM users WHERE institution_id = (SELECT institution_id FROM missions_unified WHERE id = ?) AND institution_role_id IN (SELECT id FROM institution_roles WHERE role_code = ?)',
-        [missionId, 'directeur_general']
-      );
-
-      console.log('✅ Validation financière mise à jour dans missions_unified');
-      return {
-        mission: result.rows[0],
-        next_validator_id: dgValidator.rows[0]?.id
-      };
-    } catch (error) {
-      console.error('Finance validation error:', error);
-      throw error;
-    }
+  getAvailableDrivers: async (institutionId) => {
+    const result = await query(
+      `SELECT * FROM drivers WHERE institution_id = ? AND is_available = 1 ORDER BY full_name`,
+      [institutionId]
+    );
+    return result.rows || [];
   },
 
-  // Validation finale (DG)
-  validateFinal: async (missionId, userId, action, rejectionReason) => {
-    try {
-      console.log('🔄 Validation finale dans missions_unified...');
-      console.log(`   - Mission ID: ${missionId}`);
-      console.log(`   - User ID: ${userId}`);
-      console.log(`   - Action: ${action}`);
-      console.log(`   - Rejection reason: ${rejectionReason || 'N/A'}`);
-      
-      const updateData = {
-        dg_validated_by: userId,
-        dg_validated_at: new Date().toISOString(),
-        current_step: action === 'approve' ? 6 : 1
-      };
+  calculateMissionCosts: async (participants, departureDate, returnDate) => {
+    const start = new Date(departureDate);
+    const end = new Date(returnDate);
+    const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
 
-      if (action === 'reject') {
-        updateData.status = 'rejected';
-        updateData.dg_rejection_reason = rejectionReason;
-      } else {
-        updateData.status = 'validated';
-      }
+    const enriched = (participants || []).map((participant) => ({
+      ...participant,
+      estimated_allowance: Number(participant.daily_allowance || 0) * days
+    }));
 
-      console.log('📊 Données de mise à jour:');
-      console.log(`   - Statut: ${updateData.status}`);
-      console.log(`   - Étape: ${updateData.current_step}`);
-      console.log(`   - Validé par: ${updateData.dg_validated_by}`);
-      console.log(`   - Validé le: ${updateData.dg_validated_at}`);
+    const total = enriched.reduce((sum, participant) => sum + Number(participant.estimated_allowance || 0), 0);
+    return { days, participants: enriched, total };
+  },
 
-      // Vérifier que la mission existe avant la mise à jour
-      const checkMission = await query('SELECT id, mission_reference, status, current_step FROM missions_unified WHERE id = ?', [missionId]);
-      if (!checkMission.rows || checkMission.rows.length === 0) {
-        throw new Error(`Mission ${missionId} not found`);
-      }
-      
-      console.log('✅ Mission trouvée avant mise à jour:');
-      console.log(`   - Référence: ${checkMission.rows[0].mission_reference}`);
-      console.log(`   - Statut actuel: ${checkMission.rows[0].status}`);
-      console.log(`   - Étape actuelle: ${checkMission.rows[0].current_step}`);
-
-      // Mettre à jour la table missions_unified
-      console.log('🔄 Exécution de la requête UPDATE...');
-      const updateResult = await query(
-        `
-        UPDATE missions_unified SET 
-          dg_validated_by = ?, 
-          dg_validated_at = ?, 
-          status = ?, 
-          current_step = ?, 
-          dg_rejection_reason = ?
-        WHERE id = ?
-        `,
-        [
-          updateData.dg_validated_by,
-          updateData.dg_validated_at,
-          updateData.status,
-          updateData.current_step,
-          updateData.dg_rejection_reason,
-          missionId
-        ]
-      );
-
-      console.log('✅ Mise à jour exécutée:');
-      console.log(`   - Lignes affectées: ${updateResult.changes}`);
-
-      // Récupérer la mission mise à jour
-      const result = await query('SELECT * FROM missions_unified WHERE id = ?', [missionId]);
-
-      console.log('✅ Validation finale mise à jour dans missions_unified');
-      return {
-        mission: result.rows[0],
-        success: true
-      };
-    } catch (error) {
-      console.error('Final validation error:', error);
-      throw error;
+  calculateFuelEstimate: async (transportMode, departureDate, returnDate) => {
+    if (transportMode !== 'car') {
+      return 0;
     }
+    const start = new Date(departureDate);
+    const end = new Date(returnDate);
+    const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+    return days * 25;
+  },
+
+  validateTechnical: async (missionId, userId, decision, comment = null) => {
+    const mission = await SimpleUnifiedMissionService.getMissionById(missionId);
+    if (!mission) {
+      throw new Error('Mission not found');
+    }
+    if (mission.status !== STATUSES.PENDING_TECHNICAL) {
+      throw new Error('La mission n\'est pas en attente de validation technique');
+    }
+
+    const updates = {
+      technical_validated_by: userId,
+      technical_validated_at: new Date().toISOString(),
+      technical_comment: comment || null
+    };
+
+    let nextStatus;
+    let nextValidatorId = null;
+
+    if (decision === 'reject') {
+      nextStatus = STATUSES.REJECTED_TECHNICAL;
+    } else {
+      nextStatus = STATUSES.PENDING_LOGISTICS;
+      nextValidatorId = await findValidatorId(mission.institution_id, 'role-service_moyens_generaux');
+    }
+
+    updates.status = nextStatus;
+    updates.current_step = decision === 'reject' ? mission.current_step : 2;
+    updates.rejection_reason = decision === 'reject' ? comment || 'Rejet technique' : null;
+
+    const updatedMission = await updateMission(missionId, updates);
+    await appendHistory(missionId, {
+      step: VALIDATION_STEPS.TECHNICAL,
+      actor: userId,
+      status: decision === 'reject' ? 'rejected' : 'approved',
+      notes: comment || null
+    });
+    await recordAudit(missionId, userId, 'technical_validation', { decision, comment });
+
+    return { mission: updatedMission, nextValidatorId };
+  },
+
+  assignLogistics: async (missionId, userId, payload = {}) => {
+    const mission = await SimpleUnifiedMissionService.getMissionById(missionId);
+    if (!mission) {
+      throw new Error('Mission not found');
+    }
+    if (mission.status !== STATUSES.PENDING_LOGISTICS) {
+      throw new Error('La mission n\'est pas en attente d\'attribution logistique');
+    }
+
+    const updates = {
+      status: STATUSES.PENDING_FINANCE,
+      current_step: 3,
+      logistics_assigned_by: userId,
+      logistics_assigned_at: new Date().toISOString(),
+      logistics_notes: payload.notes || null,
+      vehicle_id: payload.vehicle?.id || null,
+      vehicle_plate: payload.vehicle?.plate || null,
+      vehicle_model: payload.vehicle?.model || null,
+      vehicle_brand: payload.vehicle?.brand || null,
+      driver_id: payload.driver?.id || null,
+      driver_name: payload.driver?.name || null,
+      driver_phone: payload.driver?.phone || null,
+      driver_license: payload.driver?.license || null,
+      flight_number: payload.flight?.number || null,
+      airline_name: payload.flight?.airline || null,
+      ticket_reference: payload.flight?.reference || null
+    };
+
+    const updatedMission = await updateMission(missionId, updates);
+    await appendHistory(missionId, {
+      step: VALIDATION_STEPS.LOGISTICS,
+      actor: userId,
+      status: 'completed',
+      notes: payload.notes || null
+    });
+    await recordAudit(missionId, userId, 'logistics_assignment', payload);
+
+    const nextValidatorId = await findValidatorId(mission.institution_id, 'role-daf');
+    return { mission: updatedMission, nextValidatorId };
+  },
+
+  validateFinance: async (missionId, userId, decision, comment = null) => {
+    const mission = await SimpleUnifiedMissionService.getMissionById(missionId);
+    if (!mission) {
+      throw new Error('Mission not found');
+    }
+    if (mission.status !== STATUSES.PENDING_FINANCE) {
+      throw new Error('La mission n\'est pas en attente de validation financière');
+    }
+
+    const updates = {
+      finance_validated_by: userId,
+      finance_validated_at: new Date().toISOString(),
+      finance_comment: comment || null
+    };
+
+    let nextStatus;
+    let nextValidatorId = null;
+
+    if (decision === 'reject') {
+      nextStatus = STATUSES.REJECTED_FINANCE;
+      updates.rejection_reason = comment || 'Rejet financier';
+    } else {
+      nextStatus = STATUSES.PENDING_DG;
+      updates.rejection_reason = null;
+      nextValidatorId = await findValidatorId(mission.institution_id, 'role-dg');
+    }
+
+    updates.status = nextStatus;
+    updates.current_step = decision === 'reject' ? mission.current_step : 4;
+
+    const updatedMission = await updateMission(missionId, updates);
+    await appendHistory(missionId, {
+      step: VALIDATION_STEPS.FINANCE,
+      actor: userId,
+      status: decision === 'reject' ? 'rejected' : 'approved',
+      notes: comment || null
+    });
+    await recordAudit(missionId, userId, 'finance_validation', { decision, comment });
+
+    return { mission: updatedMission, nextValidatorId };
+  },
+
+  validateFinal: async (missionId, userId, decision, comment = null) => {
+    const mission = await SimpleUnifiedMissionService.getMissionById(missionId);
+    if (!mission) {
+      throw new Error('Mission not found');
+    }
+    if (mission.status !== STATUSES.PENDING_DG) {
+      throw new Error('La mission n\'est pas en attente de validation finale');
+    }
+
+    const updates = {
+      final_validated_by: userId,
+      final_validated_at: new Date().toISOString(),
+      final_comment: comment || null
+    };
+
+    if (decision === 'reject') {
+      updates.status = STATUSES.REJECTED_FINAL;
+      updates.rejection_reason = comment || 'Rejet final';
+      updates.current_step = mission.current_step;
+    } else {
+      updates.status = STATUSES.VALIDATED;
+      updates.rejection_reason = null;
+      updates.current_step = 5;
+    }
+
+    const updatedMission = await updateMission(missionId, updates);
+    await appendHistory(missionId, {
+      step: VALIDATION_STEPS.FINAL,
+      actor: userId,
+      status: decision === 'reject' ? 'rejected' : 'approved',
+      notes: comment || null
+    });
+    await recordAudit(missionId, userId, 'final_validation', { decision, comment });
+
+    return { mission: updatedMission };
+  },
+
+  uploadSupportingDocuments: async (missionId, userId, documents = {}) => {
+    const mission = await SimpleUnifiedMissionService.getMissionById(missionId);
+    if (!mission) {
+      throw new Error('Mission not found');
+    }
+    if (mission.status !== STATUSES.VALIDATED) {
+      throw new Error('La mission doit être validée avant le dépôt des justificatifs');
+    }
+
+    const updates = {
+      status: STATUSES.AWAITING_CLOSURE,
+      current_step: 6,
+      documents_uploaded_by: userId,
+      documents_uploaded_at: new Date().toISOString(),
+      mission_report_url: documents.mission_report_url || mission.mission_report_url || null,
+      stamped_mission_orders_url: documents.stamped_orders_url || mission.stamped_mission_orders_url || null
+    };
+
+    const updatedMission = await updateMission(missionId, updates);
+    await appendHistory(missionId, {
+      step: VALIDATION_STEPS.DOCUMENT_UPLOAD,
+      actor: userId,
+      status: 'submitted',
+      notes: null
+    });
+    await recordAudit(missionId, userId, 'documents_uploaded', documents);
+
+    return updatedMission;
+  },
+
+  closeMission: async (missionId, userId, decision, comment = null) => {
+    const mission = await SimpleUnifiedMissionService.getMissionById(missionId);
+    if (!mission) {
+      throw new Error('Mission not found');
+    }
+    if (mission.status !== STATUSES.AWAITING_CLOSURE) {
+      throw new Error('La mission doit être en attente de clôture');
+    }
+
+    if (decision === 'reject') {
+      const reopened = await SimpleUnifiedMissionService.reopenMissionForNewDocuments(missionId, userId, comment);
+      await recordAudit(missionId, userId, 'closure_rejected', { comment });
+      return { mission: reopened, closed: false };
+    }
+
+    const updates = {
+      status: STATUSES.CLOSED,
+      mission_closed_by: userId,
+      mission_closed_at: new Date().toISOString(),
+      closure_comment: comment || null,
+      documents_verified_by: userId,
+      documents_verified_at: new Date().toISOString()
+    };
+
+    const updatedMission = await updateMission(missionId, updates);
+    await appendHistory(missionId, {
+      step: VALIDATION_STEPS.CLOSURE,
+      actor: userId,
+      status: 'approved',
+      notes: comment || null
+    });
+    await recordAudit(missionId, userId, 'mission_closed', { comment });
+
+    return { mission: updatedMission, closed: true };
+  },
+
+  reopenMissionForNewDocuments: async (missionId, userId, comment = null) => {
+    const updates = {
+      status: STATUSES.VALIDATED,
+      documents_rejection_reason: comment || null,
+      documents_verified_by: userId,
+      documents_verified_at: new Date().toISOString()
+    };
+
+    const updatedMission = await updateMission(missionId, updates);
+    await appendHistory(missionId, {
+      step: VALIDATION_STEPS.CLOSURE,
+      actor: userId,
+      status: 'rejected',
+      notes: comment || null
+    });
+    await recordAudit(missionId, userId, 'mission_reopened', { comment });
+
+    return updatedMission;
+  },
+
+  getMissionHistory: async (missionId) => {
+    const missionResult = await query(
+      'SELECT validation_history FROM missions_unified WHERE id = ? LIMIT 1',
+      [missionId]
+    );
+
+    if (!missionResult.rows?.length) {
+      return null;
+    }
+
+    const history = parseJSON(missionResult.rows[0].validation_history, []);
+    const auditResult = await query(
+      `SELECT id, action, performed_by, payload, created_at
+       FROM audit_logs
+       WHERE entity_type = 'mission' AND entity_id = ?
+       ORDER BY created_at ASC`,
+      [missionId]
+    );
+
+    return {
+      history,
+      audit: auditResult.rows || []
+    };
   }
 };
 

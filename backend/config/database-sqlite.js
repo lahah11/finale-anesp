@@ -1,4 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
 const path = require('path');
 
 // Create database file path
@@ -10,153 +11,72 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.error('❌ Database connection error:', err.message);
   } else {
     console.log('✅ SQLite database connected successfully');
+    db.exec('PRAGMA foreign_keys = ON;');
   }
 });
 
-// Create tables function
-function createTables() {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      -- Create ENUMs as TEXT (SQLite doesn't support ENUMs)
-      -- institution_type: 'ministerial', 'etablissement'
-      -- user_role: 'super_admin', 'admin_local', 'hr', 'dg', 'msgg', 'agent', 'police'
-      -- mission_status: 'draft', 'pending_dg', 'pending_msgg', 'validated', 'cancelled'
-
-      -- 1. Institutions table
-      CREATE TABLE IF NOT EXISTS institutions (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-        name TEXT NOT NULL,
-        type TEXT NOT NULL CHECK (type IN ('ministerial', 'etablissement')),
-        logo_url TEXT,
-        header_text TEXT,
-        footer_text TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- 2. Users table
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL CHECK (role IN ('super_admin', 'admin_local', 'hr', 'dg', 'msgg', 'agent', 'police')),
-        institution_id TEXT REFERENCES institutions(id) ON DELETE CASCADE,
-        is_active BOOLEAN DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- 3. Employees table
-      CREATE TABLE IF NOT EXISTS employees (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-        institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
-        matricule TEXT NOT NULL,
-        full_name TEXT NOT NULL,
-        passport_number TEXT,
-        position TEXT,
-        email TEXT,
-        phone TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(institution_id, matricule)
-      );
-
-      -- 4. Signatures table
-      CREATE TABLE IF NOT EXISTS signatures (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-        institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
-        signed_by TEXT NOT NULL,
-        title TEXT NOT NULL,
-        role TEXT NOT NULL CHECK (role IN ('super_admin', 'admin_local', 'hr', 'dg', 'msgg', 'agent', 'police')),
-        stamp_url TEXT,
-        signature_url TEXT,
-        is_active BOOLEAN DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- 5. Missions table
-      CREATE TABLE IF NOT EXISTS missions (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-        mission_number TEXT UNIQUE NOT NULL,
-        employee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-        institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
-        
-        destination TEXT NOT NULL,
-        transport_mode TEXT NOT NULL,
-        objective TEXT NOT NULL,
-        
-        issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
-        departure_date DATE NOT NULL,
-        return_date DATE NOT NULL,
-        
-        status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'pending_dg', 'pending_msgg', 'validated', 'cancelled')),
-        created_by TEXT REFERENCES users(id),
-        validated_by_dg TEXT REFERENCES users(id),
-        validated_by_msgg TEXT REFERENCES users(id),
-        dg_validated_at DATETIME,
-        msgg_validated_at DATETIME,
-        
-        pdf_url TEXT,
-        qr_code TEXT,
-        
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- Create indexes
-      CREATE INDEX IF NOT EXISTS idx_users_institution ON users(institution_id);
-      CREATE INDEX IF NOT EXISTS idx_employees_institution ON employees(institution_id);
-      CREATE INDEX IF NOT EXISTS idx_missions_institution ON missions(institution_id);
-      CREATE INDEX IF NOT EXISTS idx_missions_employee ON missions(employee_id);
-      CREATE INDEX IF NOT EXISTS idx_missions_status ON missions(status);
-      CREATE INDEX IF NOT EXISTS idx_signatures_institution ON signatures(institution_id);
-    `;
-
-    db.exec(sql, (err) => {
-      if (err) {
-        console.error('❌ Error creating tables:', err.message);
-        reject(err);
-      } else {
-        console.log('✅ Tables created successfully');
-        resolve();
-      }
+async function runSqlStatements(statements) {
+  for (const statement of statements) {
+    const sql = statement.trim();
+    if (!sql) continue;
+    await new Promise((resolve, reject) => {
+      db.run(sql, (err) => {
+        if (err) {
+          console.error('❌ Migration statement failed:', sql, err.message);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
-  });
+  }
 }
 
-// Insert initial data
-function insertInitialData() {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      -- Insert default super admin (password: admin123)
-      INSERT OR IGNORE INTO users (username, email, password, role) 
-      VALUES ('superadmin', 'admin@mission-system.mr', '$2a$12$6xv811oSps0njto9ypiC4OCif03dynbGy.bPqCHHicYoBtun/PTzS', 'super_admin');
+async function runSqlFile(fileName) {
+  const filePath = path.join(__dirname, '..', 'migrations', fileName);
+  if (!fs.existsSync(filePath)) {
+    console.warn(`⚠️ Migration file ${fileName} not found, skipping.`);
+    return;
+  }
 
-      -- Insert sample institutions
-      INSERT OR IGNORE INTO institutions (name, type, header_text, footer_text) VALUES 
-      ('Ministry of Digital Transformation', 'ministerial', 'RÉPUBLIQUE ISLAMIQUE DE MAURITANIE\nHonneur - Fraternité - Justice', 'Avenue Moktar Ould Daddah ZRB 0441 Nouakchott - Mauritanie'),
-      ('Agence Numérique de l''État', 'etablissement', 'RÉPUBLIQUE ISLAMIQUE DE MAURITANIE\nHonneur - Fraternité - Justice', 'Avenue Moktar Ould Daddah ZRB 0441 Nouakchott - Mauritanie');
-    `;
+  const sqlContent = fs.readFileSync(filePath, 'utf8');
+  const statements = sqlContent
+    .split(';')
+    .map((stmt) => stmt.trim())
+    .filter((stmt) => stmt.length > 0 && !stmt.startsWith('--'));
 
-    db.exec(sql, (err) => {
-      if (err) {
-        console.error('❌ Error inserting initial data:', err.message);
-        reject(err);
-      } else {
-        console.log('✅ Initial data inserted successfully');
-        resolve();
-      }
-    });
-  });
+  await runSqlStatements(statements);
+}
+
+// Insert initial data for default admin and institutions
+async function seedDefaultData() {
+  const statements = [
+    "INSERT OR IGNORE INTO users (username, email, password, role) VALUES ('superadmin', 'admin@mission-system.mr', '$2a$12$6xv811oSps0njto9ypiC4OCif03dynbGy.bPqCHHicYoBtun/PTzS', 'super_admin')",
+    "INSERT OR IGNORE INTO institutions (id, name, type, header_text, footer_text) VALUES ('32c5a15e4679067315c5d2bab813e6d4', 'Ministry of Digital Transformation', 'ministerial', 'RÉPUBLIQUE ISLAMIQUE DE MAURITANIE\\nHonneur - Fraternité - Justice', 'Avenue Moktar Ould Daddah ZRB 0441 Nouakchott - Mauritanie')",
+    "INSERT OR IGNORE INTO institutions (id, name, type, header_text, footer_text) VALUES ('d65a41cfb8a549e6ab454f4ef57df14c', 'Agence Numérique de l''État', 'etablissement', 'RÉPUBLIQUE ISLAMIQUE DE MAURITANIE\\nHonneur - Fraternité - Justice', 'Avenue Moktar Ould Daddah ZRB 0441 Nouakchott - Mauritanie')"
+  ];
+
+  await runSqlStatements(statements);
 }
 
 // Initialize database
 async function initializeDatabase() {
   try {
-    await createTables();
-    await insertInitialData();
+    const migrationFiles = [
+      '001_initial_schema_sqlite.sql',
+      '002_institution_roles_permissions_sqlite.sql',
+      '003_missions_system_sqlite.sql',
+      '004_unified_missions_table_sqlite.sql',
+      '004_logistics_tables.sql',
+      '005_missions_unified_enhancements_sqlite.sql'
+    ];
+
+    for (const file of migrationFiles) {
+      await runSqlFile(file);
+    }
+
+    await seedDefaultData();
+
     console.log('🎉 Database initialization completed successfully');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);

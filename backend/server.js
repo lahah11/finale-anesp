@@ -29,7 +29,7 @@ app.use(
 );
 
 // **UPDATED: Environment-aware rate limiting**
-const isDevelopment = process.env.NODE_ENV === "development" || true; // Force development mode
+const isDevelopment = process.env.NODE_ENV === "development";
 
 // General rate limiting (more lenient in development)
 const limiter = rateLimit({
