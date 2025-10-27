@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>أمر المهمة</title>
+  <style>
+    /* Police arabe */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Arial', 'Tahoma', sans-serif;
+      color: #000;
+      background: #fff;
+      line-height: 1.4;
+      font-size: 12px;
+      direction: rtl;
+    }
+
+    .page {
+      width: 210mm; min-height: 297mm;
+      padding: 15mm;
+      margin: 0 auto;
+      display: flex; flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+
+    /* ========= Header ========= */
+    .header { 
+      display: grid; 
+      grid-template-columns: 1fr auto 1fr; 
+      align-items: center; 
+      margin-bottom: 15px;
+    }
+    
+    .rep-ar { text-align: center; }
+    .rep-ar .title { 
+      font-weight: 700; 
+      font-size: 16px; 
+      margin-bottom: 5px;
+    }
+    .rep-ar .motto { 
+      font-size: 12px; 
+      color: #666;
+    }
+
+    .coat { 
+      width: 80px; 
+      height: 80px; 
+      background: url('{{COAT_OF_ARMS_BASE64}}') center/contain no-repeat; 
+    }
+
+    .rep-fr { text-align: center; }
+    .rep-fr .title { 
+      font-weight: 700; 
+      font-size: 14px; 
+      margin-bottom: 5px;
+    }
+    .rep-fr .motto { 
+      font-size: 11px; 
+      color: #666;
+    }
+
+    .hr { 
+      border-bottom: 2px solid #8b4513; 
+      margin: 8px 0; 
+    }
+
+    /* ========= Ministry / Agency ========= */
+    .ministry { 
+      text-align: center; 
+      margin-bottom: 15px;
+    }
+    .ministry .ar { 
+      font-weight: 700; 
+      font-size: 14px; 
+      margin-bottom: 5px;
+    }
+    .ministry .fr { 
+      font-weight: 600; 
+      font-size: 12px; 
+      text-transform: uppercase;
+    }
+
+    .masthead {
+      display: grid; 
+      grid-template-columns: auto 1fr auto; 
+      gap: 15px; 
+      align-items: center; 
+      margin-bottom: 20px;
+    }
+    
+    .logo {
+      width: 60px; 
+      height: 60px; 
+      background: url('{{AGENCY_LOGO_BASE64}}') center/contain no-repeat;
+    }
+
+    .title-section {
+      text-align: center;
+    }
+    .title-section .main-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .title-section .sub-title {
+      font-size: 14px;
+      color: #666;
+    }
+
+    /* ========= Document Info ========= */
+    .document-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .info-block {
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    
+    .info-label {
+      font-weight: 600;
+      font-size: 11px;
+      color: #333;
+      margin-bottom: 3px;
+    }
+    
+    .info-value {
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* ========= Blocks ========= */
+    .block {
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    
+    .block-title {
+      background: #f5f5f5;
+      padding: 8px 12px;
+      font-weight: 700;
+      font-size: 13px;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .block-content {
+      padding: 12px;
+    }
+
+    /* ========= Tables ========= */
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    
+    .table th {
+      background: #f8f9fa;
+      padding: 8px;
+      text-align: right;
+      font-weight: 600;
+      border: 1px solid #ddd;
+      width: 30%;
+    }
+    
+    .table td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: right;
+    }
+
+    /* ========= Signature Section ========= */
+    .signature-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+    }
+    
+    .signature-block {
+      text-align: center;
+    }
+    
+    .signature-title {
+      font-weight: 600;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    
+    .signature-space {
+      height: 60px;
+      border-bottom: 1px solid #000;
+      margin-bottom: 5px;
+      position: relative;
+    }
+    
+    .signature-image {
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 100px;
+      max-height: 50px;
+    }
+    
+    .signature-name {
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* ========= Footer ========= */
+    .footer {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #ddd;
+      text-align: center;
+      font-size: 10px;
+      color: #666;
+    }
+
+    /* ========= QR Code ========= */
+    .qr-code {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      width: 40px;
+      height: 40px;
+      background: url('{{QR_CODE_DATA_URL}}') center/contain no-repeat;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===== Header ===== -->
+    <div class="header">
+      <div class="rep-ar">
+        <div class="title">الجمهورية الإسلامية الموريتانية</div>
+        <div class="motto">شرف، عدالة، مساواة</div>
+      </div>
+      <div class="coat"></div>
+      <div class="rep-fr">
+        <div class="title">RÉPUBLIQUE ISLAMIQUE DE MAURITANIE</div>
+        <div class="motto">Honneur, Justice, Égalité</div>
+      </div>
+    </div>
+    <div class="hr"></div>
+
+    <!-- ===== Ministry ===== -->
+    <div class="ministry">
+      <div class="ar">وزارة الإسكان والعمران وإعداد التراب الوطني</div>
+      <div class="fr">MINISTÈRE DE L'HABITAT, DE L'URBANISME ET DE L'AMÉNAGEMENT DU TERRITOIRE</div>
+    </div>
+
+    <!-- ===== Masthead ===== -->
+    <div class="masthead">
+      <div class="logo"></div>
+      <div class="title-section">
+        <div class="main-title">أمر المهمة</div>
+        <div class="sub-title">ORDRE DE MISSION</div>
+      </div>
+      <div class="logo"></div>
+    </div>
+
+    <!-- ===== Document Info ===== -->
+    <div class="document-info">
+      <div class="info-block">
+        <div class="info-label">رقم الأمر</div>
+        <div class="info-value">{{MISSION_NUMBER}}</div>
+      </div>
+      <div class="info-block">
+        <div class="info-label">التاريخ</div>
+        <div class="info-value">{{DATE_VALUE}}</div>
+      </div>
+    </div>
+
+    <!-- ===== Participants ===== -->
+    <div class="block">
+      <div class="block-title">المشاركون</div>
+      <div class="block-content">
+        <table class="table">
+          {{PARTICIPANTS_TABLE_ROWS}}
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== Mission Details ===== -->
+    <div class="block">
+      <div class="block-title">تفاصيل المهمة</div>
+      <div class="block-content">
+        <table class="table">
+          <tr>
+            <th>هدف المهمة</th>
+            <td>{{OBJECTIVE}}</td>
+          </tr>
+          <tr>
+            <th>مدينة المغادرة</th>
+            <td>{{DEPARTURE_CITY}}</td>
+          </tr>
+          <tr>
+            <th>مدينة الوصول</th>
+            <td>{{ARRIVAL_CITY}}</td>
+          </tr>
+          <tr>
+            <th>وسيلة النقل</th>
+            <td>{{TRANSPORT_MODE}}</td>
+          </tr>
+          <tr>
+            <th>تاريخ المغادرة</th>
+            <td>{{DEPARTURE_DATE}}</td>
+          </tr>
+          <tr>
+            <th>تاريخ العودة</th>
+            <td>{{RETURN_DATE}}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== Logistics ===== -->
+    <div class="block">
+      <div class="block-title">الوسائل اللوجستية</div>
+      <div class="block-content">
+        <table class="table">
+          <tr>
+            <th>السائق</th>
+            <td>{{DRIVER_NAME}} | {{DRIVER_PHONE}}</td>
+          </tr>
+          <tr>
+            <th>المركبة</th>
+            <td>رقم اللوحة: {{VEHICLE_PLATE}} | النوع: {{VEHICLE_MODEL}}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== Signature Section ===== -->
+    <div class="signature-section">
+      <div class="signature-block">
+        <div class="signature-title">المدير العام</div>
+        <div class="signature-space">
+          <img src="{{SIGNATURE_BASE64}}" class="signature-image" alt="توقيع">
+        </div>
+        <div class="signature-name">ميمونة أحمد سالم</div>
+      </div>
+      <div class="signature-block">
+        <div class="signature-title">الختم</div>
+        <div class="signature-space">
+          <img src="{{STAMP_BASE64}}" class="signature-image" alt="ختم">
+        </div>
+        <div class="signature-name">وكالة الأنشطة</div>
+      </div>
+    </div>
+
+    <!-- ===== Footer ===== -->
+    <div class="footer">
+      <div>إيلوت الخامس، قطعة 90، شارع غاندي، ص.ب: 7985 نواكشوط، موريتانيا</div>
+      <div>تلفون: 00.222 45 24 14 78 | البريد الإلكتروني: info@anesp.mr | الموقع: anesp.mr</div>
+    </div>
+
+    <!-- ===== QR Code ===== -->
+    <div class="qr-code"></div>
+  </div>
+</body>
+</html>
+

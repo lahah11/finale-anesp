@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أمر المهمة - ANESP</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap");
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Cairo", Arial, sans-serif;
+            background: white;
+            color: #000;
+            line-height: 1.4;
+            direction: rtl;
+        }
+        
+        .page {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto;
+            padding: 20mm;
+            background: white;
+            position: relative;
+        }
+        
+        /* Header Section */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+        }
+        
+        .agency-left {
+            flex: 1;
+        }
+        
+        .agency-name-arabic {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+        
+        .agency-name-french {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .director-title {
+            font-size: 12px;
+            color: #2c5aa0;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .reference-line {
+            font-size: 10px;
+            color: #666;
+            text-decoration: underline;
+        }
+        
+        .agency-right {
+            text-align: left;
+        }
+        
+        .agency-logo {
+            width: 100px;
+            height: 50px;
+            background: url("{{AGENCY_LOGO_BASE64}}") no-repeat center;
+            background-size: contain;
+            margin-bottom: 15px;
+        }
+        
+        .reference-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
+        
+        .reference-number {
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+        
+        .date-info {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .order-text {
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-top: 10px;
+        }
+        
+        /* Main Title */
+        .main-title {
+            text-align: center;
+            margin: 30px 0;
+            padding: 15px;
+            background: #2c5aa0;
+            color: white;
+            border-radius: 5px;
+        }
+        
+        .main-title h1 {
+            font-size: 20px;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+        
+        /* Mission Content */
+        .mission-content {
+            margin-bottom: 40px;
+        }
+        
+        .mission-item {
+            display: flex;
+            margin-bottom: 15px;
+            padding: 8px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        
+        .mission-label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c5aa0;
+            width: 150px;
+            text-align: right;
+            margin-left: 10px;
+        }
+        
+        .mission-value {
+            font-size: 12px;
+            color: #333;
+            flex: 1;
+            text-align: right;
+        }
+        
+        /* Personnel Section */
+        .personnel-section {
+            margin-bottom: 30px;
+        }
+        
+        .personnel-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .personnel-item {
+            display: flex;
+            margin-bottom: 12px;
+            padding: 8px;
+            background: #f0f8ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 3px;
+        }
+        
+        .personnel-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #2c5aa0;
+            width: 120px;
+            text-align: right;
+            margin-left: 10px;
+        }
+        
+        .personnel-value {
+            font-size: 11px;
+            color: #333;
+            flex: 1;
+            text-align: right;
+        }
+        
+        /* Signature Section */
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+            margin-bottom: 30px;
+        }
+        
+        .signature-left {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .signature-name {
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 10px;
+        }
+        
+        .signature-image {
+            height: 100px;
+            margin-bottom: 10px;
+            background: url("{{SIGNATURE_BASE64}}") no-repeat center;
+            background-size: contain;
+        }
+        
+        .stamp {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+            background: url("{{STAMP_BASE64}}") no-repeat center;
+            background-size: contain;
+        }
+        
+        .signature-right {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .admin-stamp-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 10px;
+        }
+        
+        .admin-stamp-box {
+            width: 120px;
+            height: 100px;
+            border: 2px dashed #ccc;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            color: #999;
+        }
+        
+        /* Footer */
+        .footer {
+            position: absolute;
+            bottom: 20mm;
+            left: 20mm;
+            right: 20mm;
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            border-top: 1px solid #2c5aa0;
+            padding-top: 10px;
+        }
+        
+        .footer-address {
+            margin-bottom: 5px;
+        }
+        
+        .footer-contact {
+            font-size: 8px;
+        }
+        
+        .footer-contact .sep {
+            margin: 0 8px;
+            color: #999;
+        }
+        
+        .footer a {
+            color: #2c5aa0;
+            text-decoration: none;
+        }
+        
+        /* Print Styles */
+        @media print {
+            .page {
+                margin: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="agency-left">
+                <div class="agency-name-arabic">الوكالة الوطنية للتنفيذ ومتابعة المشاريع</div>
+                <div class="agency-name-french">AGENCE NATIONALE D'EXÉCUTION ET DE SUIVI DES PROJETS</div>
+                <div class="director-title">La Directrice Générale المديرة العامة</div>
+                <div class="reference-line">Réf: APDM n°028/DT/2025 en date du {{DATE_VALUE}}</div>
+            </div>
+            
+            <div class="agency-right">
+                <div class="agency-logo"></div>
+                <div class="reference-info">
+                    <div class="reference-number">N° OM N° {{MISSION_NUMBER}}/DG/ANESP</div>
+                    <div class="date-info">
+                        <div>Date: {{DATE_VALUE}}</div>
+                        <div>بتاريخ</div>
+                    </div>
+                </div>
+                <div class="order-text">يُؤمر</div>
+            </div>
+        </div>
+        
+        <!-- Main Title -->
+        <div class="main-title">
+            <h1>أمر بمهمة</h1>
+        </div>
+        
+        <!-- Mission Content -->
+        <div class="mission-content">
+            <div class="mission-item">
+                <div class="mission-label">المهمة:</div>
+                <div class="mission-value">{{OBJECTIVE}}</div>
+            </div>
+            
+            <div class="mission-item">
+                <div class="mission-label">بالتوجه إلى:</div>
+                <div class="mission-value">{{DESTINATION}}</div>
+            </div>
+            
+            <div class="mission-item">
+                <div class="mission-label">مدة المهمة:</div>
+                <div class="mission-value">{{MISSION_DURATION}} أيام</div>
+            </div>
+            
+            <div class="mission-item">
+                <div class="mission-label">تاريخ الذهاب:</div>
+                <div class="mission-value">{{DEPARTURE_DATE}}</div>
+            </div>
+            
+            <div class="mission-item">
+                <div class="mission-label">تاريخ العودة:</div>
+                <div class="mission-value">{{RETURN_DATE}}</div>
+            </div>
+            
+            <div class="mission-item">
+                <div class="mission-label">وسيلة النقل:</div>
+                <div class="mission-value">{{TRANSPORT_MODE}}</div>
+            </div>
+        </div>
+        
+        <!-- Personnel Section -->
+        <div class="personnel-section">
+            <div class="personnel-title">المشاركون في المهمة</div>
+            
+            <div class="personnel-item">
+                <div class="personnel-label">السيد:</div>
+                <div class="personnel-value">{{FULL_NAME}}</div>
+            </div>
+            
+            <div class="personnel-item">
+                <div class="personnel-label">المهنة:</div>
+                <div class="personnel-value">{{POSITION}}</div>
+            </div>
+            
+            <div class="personnel-item">
+                <div class="personnel-label">رقم ب ت و:</div>
+                <div class="personnel-value">{{NNI}}</div>
+            </div>
+            
+            {{OTHER_PARTICIPANTS}}
+            
+            <div class="personnel-item">
+                <div class="personnel-label">والسيد:</div>
+                <div class="personnel-value">{{DRIVER_NAME}}</div>
+            </div>
+            
+            <div class="personnel-item">
+                <div class="personnel-label">المهنة:</div>
+                <div class="personnel-value">سائق</div>
+            </div>
+            
+            <div class="personnel-item">
+                <div class="personnel-label">رقم ب ت و:</div>
+                <div class="personnel-value">{{DRIVER_NNI}}</div>
+            </div>
+        </div>
+        
+        <!-- Signature Section -->
+        <div class="signature-section">
+            <div class="signature-left">
+                <div class="signature-name">{{SIGNER_NAME}}</div>
+                <div class="signature-image"></div>
+                <div class="stamp"></div>
+            </div>
+            
+            <div class="signature-right">
+                <div class="admin-stamp-label">ختم السلطات الإدارية</div>
+                <div class="admin-stamp-box">ختم</div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-address">
+                Ilot V, lot 90, Rue Gandhi, BP: 7985 Nouakchott, Mauritanie
+            </div>
+            <div class="footer-contact">
+                ☎ 00.222 45 24 14 78
+                <span class="sep">|</span>
+                ✉ <a href="mailto:info@anesp.mr">info@anesp.mr</a>
+                <span class="sep">|</span>
+                🌐 <a href="https://anesp.mr">anesp.mr</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

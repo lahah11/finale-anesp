@@ -1,0 +1,8 @@
+include:
+  - project: 'anetat/anetat-devsecops/anetat-devsecops-pipeline'
+    ref: "release-0.2.0"
+    file: '/anetat-devsecops-gitlab-ci.yml'
+variables:
+  APP_NAME: "som"
+  APP_TYPE: "nextjs"
+  TEMPLATE_REPO_REF: "release-0.2.0"

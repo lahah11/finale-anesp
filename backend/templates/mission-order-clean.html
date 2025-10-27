@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أمر المهمة</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap");
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Cairo", Arial, sans-serif;
+            background: white;
+            color: #000;
+            line-height: 1.3;
+            direction: rtl;
+        }
+        
+        .page {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto;
+            padding: 10mm;
+            background: white;
+            position: relative;
+        }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #2c5aa0;
+            padding-bottom: 10px;
+        }
+        
+        .republic-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+        
+        .republic-motto {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .coat-of-arms {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 10px;
+            background: url("{{COAT_OF_ARMS_BASE64}}") no-repeat center;
+            background-size: contain;
+        }
+        
+        /* Ministry */
+        .ministry {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+        }
+        
+        .ministry-arabic {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+        
+        .ministry-french {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* Agency Info */
+        .agency-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f0f8ff;
+            border: 1px solid #b3d9ff;
+        }
+        
+        .agency-left {
+            flex: 1;
+        }
+        
+        .agency-logo {
+            width: 60px;
+            height: 30px;
+            background: url("{{AGENCY_LOGO_BASE64}}") no-repeat center;
+            background-size: contain;
+            margin-bottom: 5px;
+        }
+        
+        .agency-name {
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+        
+        .director-info {
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .date-number {
+            text-align: left;
+            background: white;
+            padding: 10px;
+            border: 2px solid #2c5aa0;
+            border-radius: 5px;
+            min-width: 200px;
+        }
+        
+        .date-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 11px;
+        }
+        
+        .date-label {
+            font-weight: bold;
+            color: #2c5aa0;
+        }
+        
+        .date-value {
+            font-weight: bold;
+            color: #000;
+            background: #f0f8ff;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+        
+        /* Main Title */
+        .main-title {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background: #2c5aa0;
+            color: white;
+            border-radius: 5px;
+        }
+        
+        .main-title h1 {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        /* Mission Details */
+        .mission-details {
+            margin-bottom: 20px;
+        }
+        
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        
+        .details-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            vertical-align: top;
+        }
+        
+        .details-table .label {
+            background: #f8f9fa;
+            font-weight: bold;
+            width: 30%;
+            color: #2c5aa0;
+            text-align: right;
+            font-size: 11px;
+        }
+        
+        .details-table .value {
+            background: white;
+            width: 70%;
+            text-align: right;
+            font-size: 11px;
+        }
+        
+        /* Engineer Section */
+        .engineer-section {
+            margin: 20px 0;
+            padding: 10px;
+            background: #f0f8ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+        }
+        
+        .engineer-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c5aa0;
+            text-align: center;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #e6f3ff;
+            border-radius: 3px;
+        }
+        
+        .engineer-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .engineer-table td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            vertical-align: top;
+        }
+        
+        .engineer-table .label {
+            background: #f8f9fa;
+            font-weight: bold;
+            width: 25%;
+            color: #2c5aa0;
+            text-align: right;
+            font-size: 10px;
+        }
+        
+        .engineer-table .value {
+            background: white;
+            width: 75%;
+            text-align: right;
+            font-size: 10px;
+        }
+        
+        /* Participants Table */
+        .participants-section {
+            margin: 20px 0;
+            padding: 10px;
+            background: #f0fff0;
+            border: 1px solid #90ee90;
+            border-radius: 5px;
+        }
+        
+        .participants-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c5aa0;
+            text-align: center;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #e6ffe6;
+            border-radius: 3px;
+        }
+        
+        .participants-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .participants-table th,
+        .participants-table td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: center;
+            vertical-align: top;
+        }
+        
+        .participants-table th {
+            background: #2c5aa0;
+            color: white;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        
+        .participants-table td {
+            background: white;
+            font-size: 9px;
+        }
+        
+        .participants-table .name-col {
+            width: 25%;
+            text-align: right;
+        }
+        
+        .participants-table .nni-col {
+            width: 15%;
+        }
+        
+        .participants-table .profession-col {
+            width: 20%;
+        }
+        
+        .participants-table .ministry-col {
+            width: 25%;
+            text-align: right;
+        }
+        
+        .participants-table .role-col {
+            width: 15%;
+        }
+        
+        /* Signature Section */
+        .signature-section {
+            margin-top: 30px;
+            text-align: left;
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .signature-box {
+            text-align: center;
+            width: 200px;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .signature-name {
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 10px;
+        }
+        
+        .signature-image {
+            height: 60px;
+            margin-bottom: 10px;
+            background: url("{{SIGNATURE_BASE64}}") no-repeat center;
+            background-size: contain;
+        }
+        
+        .stamp {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto;
+            background: url("{{STAMP_BASE64}}") no-repeat center;
+            background-size: contain;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #2c5aa0;
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+        }
+        
+        .footer-line {
+            margin: 3px 0;
+        }
+        
+        .footer-line.ar {
+            direction: rtl;
+        }
+        
+        .footer a {
+            color: #2c5aa0;
+            text-decoration: none;
+        }
+        
+        .footer .sep {
+            margin: 0 10px;
+            color: #999;
+        }
+        
+        /* Print Styles */
+        @media print {
+            .page {
+                margin: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <!-- Header -->
+        <div class="header">
+            <div class="coat-of-arms"></div>
+            <div class="republic-title">الجمهورية الإسلامية الموريتانية</div>
+            <div class="republic-motto">شرف - إخاء - عدل</div>
+        </div>
+        
+        <!-- Ministry -->
+        <div class="ministry">
+            <div class="ministry-arabic">وزارة الإسكان والعمران والاستصلاح الترابي</div>
+            <div class="ministry-french">MINISTERE DE L'HABITAT, DE L'URBANISME ET DE L'AMENAGEMENT DU TERRITOIRE</div>
+        </div>
+        
+        <!-- Agency Info -->
+        <div class="agency-info">
+            <div class="agency-left">
+                <div class="agency-logo"></div>
+                <div class="agency-name">الوكالة الوطنية للتنفيذ ومتابعة المشاريع (ANESP)</div>
+                <div class="director-info">
+                    <div>المديرة العامة</div>
+                    <div>La Directrice Générale</div>
+                </div>
+            </div>
+            
+            <div class="date-number">
+                <div class="date-line">
+                    <span class="date-label">نواكشوط، في</span>
+                    <span class="date-value">{{DATE_VALUE}}</span>
+                    <span class="date-label">NOUAKCHOTT, LE</span>
+                </div>
+                <div class="date-line">
+                    <span class="date-label">الرقم</span>
+                    <span class="date-value">{{MISSION_NUMBER}}</span>
+                    <span class="date-label">N°</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Title -->
+        <div class="main-title">
+            <h1>أمر المهمة</h1>
+        </div>
+        
+        <!-- Mission Details -->
+        <div class="mission-details">
+            <table class="details-table">
+                <tr>
+                    <td class="label">الاسم واللقب</td>
+                    <td class="value">{{FULL_NAME}}</td>
+                </tr>
+                <tr>
+                    <td class="label">الرقم الوظيفي</td>
+                    <td class="value">{{MATRICULE}}</td>
+                </tr>
+                <tr>
+                    <td class="label">الرقم الوطني</td>
+                    <td class="value">{{NNI}}</td>
+                </tr>
+                <tr>
+                    <td class="label">الوظيفة</td>
+                    <td class="value">{{POSITION}}</td>
+                </tr>
+                <tr>
+                    <td class="label">الوجهة</td>
+                    <td class="value">{{DESTINATION}}</td>
+                </tr>
+                <tr>
+                    <td class="label">وسيلة النقل</td>
+                    <td class="value">{{TRANSPORT_MODE}}</td>
+                </tr>
+                <tr>
+                    <td class="label">هدف المهمة</td>
+                    <td class="value">{{OBJECTIVE}}</td>
+                </tr>
+                <tr>
+                    <td class="label">تاريخ المغادرة</td>
+                    <td class="value">{{DEPARTURE_DATE}}</td>
+                </tr>
+                <tr>
+                    <td class="label">تاريخ العودة (نهاية المهمة)</td>
+                    <td class="value">{{RETURN_DATE}}</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Engineer Information -->
+        <div class="engineer-section">
+            <div class="engineer-title">معلومات المهندس المسؤول</div>
+            <table class="engineer-table">
+                <tr>
+                    <td class="label">الاسم واللقب</td>
+                    <td class="value">{{ENGINEER_NAME}}</td>
+                </tr>
+                <tr>
+                    <td class="label">المنصب</td>
+                    <td class="value">{{ENGINEER_POSITION}}</td>
+                </tr>
+                <tr>
+                    <td class="label">القسم</td>
+                    <td class="value">{{ENGINEER_DEPARTMENT}}</td>
+                </tr>
+                <tr>
+                    <td class="label">الرقم الوطني</td>
+                    <td class="value">{{ENGINEER_NNI}}</td>
+                </tr>
+                <tr>
+                    <td class="label">الهاتف</td>
+                    <td class="value">{{ENGINEER_PHONE}}</td>
+                </tr>
+                <tr>
+                    <td class="label">البريد الإلكتروني</td>
+                    <td class="value">{{ENGINEER_EMAIL}}</td>
+                </tr>
+                <tr>
+                    <td class="label">المكتب</td>
+                    <td class="value">{{ENGINEER_OFFICE}}</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Other Participants -->
+        <div class="participants-section">
+            <div class="participants-title">المشاركون الآخرون في المهمة</div>
+            <table class="participants-table">
+                <thead>
+                    <tr>
+                        <th class="name-col">الاسم واللقب</th>
+                        <th class="nni-col">الرقم الوطني</th>
+                        <th class="profession-col">المهنة</th>
+                        <th class="ministry-col">الوزارة</th>
+                        <th class="role-col">الدور في المهمة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{OTHER_PARTICIPANTS}}
+                    <tr>
+                        <td colspan="5" style="text-align: center; font-style: italic; color: #666;">لا يوجد مشاركون آخرون</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Signature -->
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-name">{{SIGNER_NAME}}<br/>المديرة العامة</div>
+                <div class="signature-image"></div>
+                <div class="stamp"></div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-line ar">
+                📍 إيلوت V، رقم 90، شارع غاندي، ص.ب : 7985 نواكشوط - موريتانيا
+                <span class="sep">|</span> ☎ 00.222 45 24 14 78
+                <span class="sep">|</span> ✉ <a href="mailto:info@anesp.mr">info@anesp.mr</a>
+                <span class="sep">|</span> 🌐 <a href="https://anesp.mr">anesp.mr</a>
+            </div>
+            <div class="footer-line">
+                📍 Ilot V, lot.90, Rue Gandhi, BP : 7985 Nouakchott, Mauritanie
+                <span class="sep">|</span> ☎ 00.222 45 24 14 78
+                <span class="sep">|</span> ✉ <a href="mailto:info@anesp.mr">info@anesp.mr</a>
+                <span class="sep">|</span> 🌐 <a href="https://anesp.mr">anesp.mr</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
