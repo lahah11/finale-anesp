@@ -1,10 +1,12 @@
 'use client';
 
-import { useAuth } from '@/app/providers';
+import { useAuth, useTranslation } from '@/app/providers';
 import { Bars3Icon, BellIcon } from '@heroicons/react/24/outline';
+import { LanguageSwitcher } from '../LanguageSwitcher';
 
 export default function Header() {
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   return (
     <div className="bg-white shadow-sm border-b border-gray-200">
@@ -22,12 +24,13 @@ export default function Header() {
         {/* Page title */}
         <div className="flex items-center">
           <h1 className="text-xl font-semibold text-gray-900">
-            Système d'Ordre de Mission
+            {t('app.title')}
           </h1>
         </div>
 
         {/* Right side */}
         <div className="flex items-center space-x-4">
+          <LanguageSwitcher />
           {/* Notifications */}
           <button className="p-2 text-gray-400 hover:text-gray-500">
             <BellIcon className="h-6 w-6" />

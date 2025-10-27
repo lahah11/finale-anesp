@@ -60,7 +60,7 @@ const NotificationService = {
       const result = await query(
         `SELECT n.*, m.mission_reference, m.mission_object
          FROM notifications n
-         LEFT JOIN missions m ON n.mission_id = m.id
+         LEFT JOIN missions_unified m ON n.mission_id = m.id
          WHERE n.user_id = ?
          ORDER BY n.created_at DESC
          LIMIT ?`,

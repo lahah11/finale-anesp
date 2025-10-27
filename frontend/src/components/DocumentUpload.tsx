@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { DocumentArrowUpIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { DocumentArrowUpIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { missionService } from '@/services/missionService';
+import { useTranslation } from '@/app/providers';
 
 interface DocumentUploadProps {
   missionId: string;
@@ -13,51 +15,40 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
   const [missionReportFile, setMissionReportFile] = useState<File | null>(null);
   const [stampedOrdersFile, setStampedOrdersFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!missionReportFile || !stampedOrdersFile) {
-      toast.error('Veuillez sélectionner les deux fichiers');
+      toast.error(t('documents.upload.toast.missingFiles'));
       return;
     }
 
-    // Vérifier le type de fichier (PDF uniquement)
     if (missionReportFile.type !== 'application/pdf' || stampedOrdersFile.type !== 'application/pdf') {
-      toast.error('Seuls les fichiers PDF sont acceptés');
+      toast.error(t('documents.upload.toast.invalidType'));
       return;
     }
 
-    // Vérifier la taille des fichiers (max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (missionReportFile.size > maxSize || stampedOrdersFile.size > maxSize) {
-      toast.error('La taille des fichiers ne doit pas dépasser 10MB');
+      toast.error(t('documents.upload.toast.size'));
       return;
     }
 
     setIsUploading(true);
-    
+
     try {
       const formData = new FormData();
       formData.append('mission_report', missionReportFile);
       formData.append('stamped_mission_orders', stampedOrdersFile);
 
-      const response = await fetch(`http://localhost:5000/api/missions/${missionId}/upload-documents`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Erreur lors de l\'upload des documents');
-      }
-
-      const result = await response.json();
-      toast.success(result.message);
+      const result = await missionService.uploadDocuments(missionId, formData);
+      toast.success(result.message || t('documents.upload.toast.success'));
       onUploadComplete();
     } catch (error) {
       console.error('Upload documents error:', error);
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'upload des documents');
+      toast.error(error instanceof Error ? error.message : t('documents.upload.toast.error'));
     } finally {
       setIsUploading(false);
     }
@@ -68,9 +59,9 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
       <div className="flex items-center mb-6">
         <DocumentArrowUpIcon className="h-8 w-8 text-blue-600 mr-3" />
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Upload des documents justificatifs</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t('documents.upload.title')}</h3>
           <p className="text-sm text-gray-600">
-            Veuillez uploader le rapport de mission et les ordres de mission cachetés
+            {t('documents.upload.subtitle')}
           </p>
         </div>
       </div>
@@ -78,7 +69,7 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor="missionReportFile" className="block text-sm font-medium text-gray-700 mb-2">
-            Rapport de mission (PDF) *
+            {t('documents.upload.label.report')}
           </label>
           <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
             <div className="space-y-1 text-center">
@@ -88,7 +79,7 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
                   htmlFor="missionReportFile"
                   className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
                 >
-                  <span>Choisir un fichier</span>
+                  <span>{t('documents.upload.select')}</span>
                   <input
                     id="missionReportFile"
                     name="missionReportFile"
@@ -99,12 +90,12 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
                     required
                   />
                 </label>
-                <p className="pl-1">ou glisser-déposer</p>
+                <p className="pl-1">{t('documents.upload.dragDrop')}</p>
               </div>
-              <p className="text-xs text-gray-500">PDF jusqu'à 10MB</p>
+              <p className="text-xs text-gray-500">{t('documents.upload.hint')}</p>
               {missionReportFile && (
                 <p className="text-sm text-green-600 font-medium">
-                  ✓ {missionReportFile.name} ({(missionReportFile.size / 1024 / 1024).toFixed(2)} MB)
+                  {t('documents.upload.fileSelected')} {missionReportFile.name} ({(missionReportFile.size / 1024 / 1024).toFixed(2)} MB)
                 </p>
               )}
             </div>
@@ -113,7 +104,7 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
 
         <div>
           <label htmlFor="stampedOrdersFile" className="block text-sm font-medium text-gray-700 mb-2">
-            Ordres de mission cachetés (PDF) *
+            {t('documents.upload.label.stamped')}
           </label>
           <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
             <div className="space-y-1 text-center">
@@ -123,7 +114,7 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
                   htmlFor="stampedOrdersFile"
                   className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
                 >
-                  <span>Choisir un fichier</span>
+                  <span>{t('documents.upload.select')}</span>
                   <input
                     id="stampedOrdersFile"
                     name="stampedOrdersFile"
@@ -134,12 +125,12 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
                     required
                   />
                 </label>
-                <p className="pl-1">ou glisser-déposer</p>
+                <p className="pl-1">{t('documents.upload.dragDrop')}</p>
               </div>
-              <p className="text-xs text-gray-500">PDF jusqu'à 10MB</p>
+              <p className="text-xs text-gray-500">{t('documents.upload.hint')}</p>
               {stampedOrdersFile && (
                 <p className="text-sm text-green-600 font-medium">
-                  ✓ {stampedOrdersFile.name} ({(stampedOrdersFile.size / 1024 / 1024).toFixed(2)} MB)
+                  {t('documents.upload.fileSelected')} {stampedOrdersFile.name} ({(stampedOrdersFile.size / 1024 / 1024).toFixed(2)} MB)
                 </p>
               )}
             </div>
@@ -155,7 +146,7 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
               setStampedOrdersFile(null);
             }}
           >
-            Annuler
+            {t('documents.upload.button.cancel')}
           </button>
           <button
             type="submit"
@@ -165,12 +156,12 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
             {isUploading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Upload en cours...
+                {t('documents.upload.button.processing')}
               </>
             ) : (
               <>
                 <DocumentArrowUpIcon className="h-4 w-4 mr-2" />
-                Uploader les documents
+                {t('documents.upload.button.submit')}
               </>
             )}
           </button>
@@ -183,13 +174,13 @@ export default function DocumentUpload({ missionId, onUploadComplete }: Document
             <CheckCircleIcon className="h-5 w-5 text-blue-400" />
           </div>
           <div className="ml-3">
-            <h4 className="text-sm font-medium text-blue-800">Instructions</h4>
+            <h4 className="text-sm font-medium text-blue-800">{t('documents.upload.instructionsTitle')}</h4>
             <div className="mt-2 text-sm text-blue-700">
               <ul className="list-disc list-inside space-y-1">
-                <li>Assurez-vous que les documents sont clairement lisibles</li>
-                <li>Les ordres de mission doivent être cachetés et signés</li>
-                <li>Le rapport de mission doit être complet et détaillé</li>
-                <li>Une fois uploadés, les documents seront vérifiés par le Service Moyens Généraux</li>
+                <li>{t('documents.upload.instructions.1')}</li>
+                <li>{t('documents.upload.instructions.2')}</li>
+                <li>{t('documents.upload.instructions.3')}</li>
+                <li>{t('documents.upload.instructions.4')}</li>
               </ul>
             </div>
           </div>
