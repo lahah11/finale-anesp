@@ -1,0 +1,26 @@
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-anetat"
+  host: som.uat.anetat.com
+  
+  tls:
+    enabled: true 
+    secretName: app-tls-secret 
+
+# Backend service configuration (passed to Angular chart)
+backend:
+  serviceName: som-backend-expressjs
+  servicePort: 3000 
+  apiPath: /api
+  ws:
+    enabled: false # Set to true to enable WebSocket support
+
+
+extraEnv:
+  ENV_NAME: "uat"
+  NEXT_PUBLIC_API_URL: "https://som.uat.anetat.com/api"
+

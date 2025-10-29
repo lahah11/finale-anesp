@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أمر المهمة</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Amiri:wght@400;700&display=swap");
+
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Cairo", "Amiri", Arial, sans-serif;
+            background: white;
+            color: #000;
+            line-height: 1.2;
+        }
+        .page {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto;
+            padding: 15mm;
+            background: white;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Section */
+        .header {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .header-top {
+            position: relative;
+            margin-bottom: -2%;
+            min-height: 50px;
+            margin-left: 250px;
+        }
+        .arabic-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-left: 12px;
+            direction: rtl;
+            text-align: center;
+            padding-right: 100px;
+        }
+        .arabic-motto {
+            font-size: 14px;
+            direction: rtl;
+            text-align: center;
+            margin-bottom: 0;
+            padding-right: 100px;
+        }
+        .coat-of-arms {
+            position: absolute;
+            right: 60px;
+            top: 7px;
+            width: 70px;
+            height: 70px;
+            z-index: 10;
+            background: url("{{COAT_OF_ARMS_BASE64}}") no-repeat center;
+            background-size: contain;
+        }
+        .header-line {
+            border-bottom: 2px solid #8b4513;
+            margin: 3px 0 8px 0;
+            width: calc(100% - 40px);
+            position: relative;
+        }
+        .french-header {
+            text-align: center;
+            margin-bottom: 8px;
+            margin-left: 150px;
+        }
+        .french-title {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        .french-motto {
+            font-size: 12px;
+        }
+
+        /* Institution Section */
+        .institution-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            align-items: flex-start;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .institution-left {
+            flex: 1;
+            max-width: 65%;
+            display: flex;
+            flex-direction: column;
+        }
+        .ministry-section {
+            position: absolute;
+            top: 9%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .ministry-arabic {
+            font-size: 13px;
+            direction: rtl;
+            text-align: left;
+            margin-bottom: 2px;
+            font-weight: bold;
+            padding-right: 20px;
+        }
+        .ministry-french {
+            font-size: 10.5px;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+        .agency-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .agency-logo {
+            width: 200px;
+            height: 80px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .agency-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+        .agency-text {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .agency-arabic {
+            font-size: 12px;
+            direction: rtl;
+            text-align: left;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        .agency-french {
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .director-section {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .director-arabic {
+            font-size: 12px;
+            direction: rtl;
+            text-align: left;
+            margin-bottom: 2px;
+            font-weight: bold;
+        }
+        .director-french {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* Date and Number Box - Fixed positioning */
+        .date-number-box {
+            width: 220px;
+            padding: 10px;
+            flex-shrink: 0;
+            margin-right: 60px;
+            margin-top: 0;
+            align-self: flex-start;
+        }
+        .date-section {
+            margin-bottom: 15px;
+        }
+        .date-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            white-space: nowrap;
+        }
+        .date-arabic {
+            font-size: 11px;
+            direction: rtl;
+            text-align: right;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+        .date-french {
+            font-size: 12px;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+        .date-value {
+            font-size: 12px;
+            font-weight: bold;
+            color: #0000ff;
+            text-align: center;
+            padding: 0 10px;
+            white-space: nowrap;
+        }
+        .number-section {
+            margin-top: 10px;
+        }
+        .number-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            white-space: nowrap;
+        }
+        .number-arabic {
+            font-size: 12px;
+            direction: rtl;
+            text-align: right;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+        .number-french {
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .number-value {
+            font-size: 12px;
+            font-weight: bold;
+            color: #0000ff;
+            text-align: center;
+            padding: 0 10px;
+            white-space: nowrap;
+        }
+
+        /* Main Title */
+        .main-title {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .title-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .title-underline {
+            width: 200px;
+            height: 3px;
+            background: #000;
+            margin: 0 auto;
+        }
+
+        /* Mission Table */
+        .mission-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+        }
+        .mission-table td {
+            border: 1px solid #000;
+            padding: 8px 12px;
+            vertical-align: top;
+        }
+        .mission-table .label {
+            background: #f5f5f5;
+            font-weight: bold;
+            width: 180px;
+            font-size: 11px;
+        }
+        .mission-table .value {
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        /* Engineer Section */
+        .engineer-section {
+            margin: 25px 0;
+            padding: 15px;
+            background: #f0f8ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+        }
+        .engineer-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c5aa0;
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #e6f3ff;
+            border-radius: 3px;
+        }
+        .engineer-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .engineer-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            vertical-align: top;
+        }
+        .engineer-table .label {
+            background: #f8f9fa;
+            font-weight: bold;
+            width: 25%;
+            color: #2c5aa0;
+            text-align: right;
+        }
+        .engineer-table .value {
+            background: white;
+            width: 75%;
+            text-align: right;
+        }
+
+        /* Participants Table */
+        .participants-section {
+            margin: 25px 0;
+            padding: 15px;
+            background: #f0fff0;
+            border: 1px solid #90ee90;
+            border-radius: 5px;
+        }
+        .participants-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c5aa0;
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #e6ffe6;
+            border-radius: 3px;
+        }
+        .participants-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .participants-table th,
+        .participants-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            vertical-align: top;
+        }
+        .participants-table th {
+            background: #2c5aa0;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .participants-table td {
+            background: white;
+            font-size: 11px;
+        }
+        .participants-table .name-col {
+            width: 25%;
+            text-align: right;
+        }
+        .participants-table .nni-col {
+            width: 15%;
+        }
+        .participants-table .profession-col {
+            width: 20%;
+        }
+        .participants-table .ministry-col {
+            width: 25%;
+            text-align: right;
+        }
+        .participants-table .role-col {
+            width: 15%;
+        }
+
+        /* Signature Section */
+        .signature-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 80px;
+            margin-top: 40px;
+        }
+        .signature-box {
+            text-align: center;
+            width: 250px;
+        }
+        .signature-name {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+        .signature-image {
+            height: 120px;
+            margin-bottom: 50px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .stamp {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* QR Code */
+        .qr-code {
+            position: absolute;
+            bottom: 140px;
+            left: 15mm;
+            width: 80px;
+            height: 80px;
+            background: url("{{QR_CODE_DATA_URL}}") no-repeat center;
+            background-size: contain;
+            border: 1px solid #ddd;
+        }
+        .qr-label {
+            position: absolute;
+            bottom: 115px;
+            left: 15mm;
+            width: 80px;
+            text-align: center;
+            font-size: 8px;
+            color: #666;
+        }
+
+        /* Footer */
+        .footer {
+            position: absolute;
+            bottom: 15mm;
+            left: 15mm;
+            right: 15mm;
+            border-top: 1px solid #000;
+            padding-top: 10px;
+        }
+        .footer-addresses {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .footer-arabic {
+            font-size: 10px;
+            direction: rtl;
+            text-align: right;
+            flex: 1;
+        }
+        .footer-french {
+            font-size: 10px;
+            text-align: left;
+            flex: 1;
+        }
+        .footer-contact {
+            text-align: center;
+            font-size: 10px;
+        }
+
+        /* Print Styles */
+        @media print {
+            .page {
+                margin: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="header-top">
+                <div class="arabic-title">الجمهورية الإسلامية الموريتانية</div>
+                <div class="arabic-motto">شرف - إخاء - عدل</div>
+                <div class="coat-of-arms"></div>
+            </div>
+            <div class="header-line"></div>
+            <div class="french-header">
+                <div class="french-title">RÉPUBLIQUE ISLAMIQUE DE MAURITANIE</div>
+                <div class="french-motto">Honneur - Fraternité - Justice</div>
+            </div>
+        </div>
+
+        <div class="ministry-section">
+            <div class="ministry-arabic">
+                وزارة الإسكان والعمران والاستصلاح الترابي
+            </div>
+            <div class="ministry-french">
+                MINISTERE DE L'HABITAT, DE L'URBANISME ET DE L'AMENAGEMENT DU TERRITOIRE
+            </div>
+        </div>
+
+        <!-- Institution and Date Section -->
+        <div class="institution-section">
+            <div class="institution-left">
+                <div class="agency-section">
+                    <div class="agency-logo">
+                        <img src="{{AGENCY_LOGO_BASE64}}" alt="ANESP Logo" />
+                    </div>
+                    <div class="agency-text">
+                        <div class="agency-arabic">الوكالة الوطنية للتنفيذ ومتابعة المشاريع (ANESP)</div>
+                        <div class="agency-french">Agence Nationale d'Exécution et de Suivi des Projets (ANESP)</div>
+                    </div>
+                </div>
+
+                <div class="director-section">
+                    <div class="director-arabic">المديرة العامة</div>
+                    <div class="director-french">La Directrice Générale</div>
+                </div>
+            </div>
+
+            <div class="date-number-box">
+                <div class="date-section">
+                    <div class="date-line">
+                        <div class="date-french">NOUAKCHOTT, LE</div>
+                        <div class="date-value">{{DATE_VALUE}}</div>
+                        <div class="date-arabic">نواكشوط، في</div>
+                    </div>
+                </div>
+
+                <div class="number-section">
+                    <div class="number-line">
+                        <div class="number-french">N°</div>
+                        <div class="number-value">{{MISSION_NUMBER}}</div>
+                        <div class="number-arabic">الرقم</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Title -->
+        <div class="main-title">
+            <div class="title-text">أمر المهمة</div>
+            <div class="title-underline"></div>
+        </div>
+
+        <!-- Mission Details Table -->
+        <table class="mission-table">
+            <tr>
+                <td class="label">الاسم واللقب</td>
+                <td class="value">{{FULL_NAME}}</td>
+            </tr>
+            <tr>
+                <td class="label">الرقم الوظيفي</td>
+                <td class="value">{{MATRICULE}}</td>
+            </tr>
+            <tr>
+                <td class="label">الرقم الوطني</td>
+                <td class="value">{{NNI}}</td>
+            </tr>
+            <tr>
+                <td class="label">الوظيفة</td>
+                <td class="value">{{POSITION}}</td>
+            </tr>
+            <tr>
+                <td class="label">الوجهة</td>
+                <td class="value">{{DESTINATION}}</td>
+            </tr>
+            <tr>
+                <td class="label">وسيلة النقل</td>
+                <td class="value">{{TRANSPORT_MODE}}</td>
+            </tr>
+            <tr>
+                <td class="label">هدف المهمة</td>
+                <td class="value">{{OBJECTIVE}}</td>
+            </tr>
+            <tr>
+                <td class="label">تاريخ المغادرة</td>
+                <td class="value">{{DEPARTURE_DATE}}</td>
+            </tr>
+            <tr>
+                <td class="label">تاريخ العودة (نهاية المهمة)</td>
+                <td class="value">{{RETURN_DATE}}</td>
+            </tr>
+        </table>
+
+        <!-- Engineer Information -->
+        <div class="engineer-section">
+            <div class="engineer-title">معلومات المهندس المسؤول</div>
+            <table class="engineer-table">
+                <tr>
+                    <td class="label">الاسم واللقب</td>
+                    <td class="value">{{ENGINEER_NAME}}</td>
+                </tr>
+                <tr>
+                    <td class="label">المنصب</td>
+                    <td class="value">{{ENGINEER_POSITION}}</td>
+                </tr>
+                <tr>
+                    <td class="label">القسم</td>
+                    <td class="value">{{ENGINEER_DEPARTMENT}}</td>
+                </tr>
+                <tr>
+                    <td class="label">الرقم الوطني</td>
+                    <td class="value">{{ENGINEER_NNI}}</td>
+                </tr>
+                <tr>
+                    <td class="label">الهاتف</td>
+                    <td class="value">{{ENGINEER_PHONE}}</td>
+                </tr>
+                <tr>
+                    <td class="label">البريد الإلكتروني</td>
+                    <td class="value">{{ENGINEER_EMAIL}}</td>
+                </tr>
+                <tr>
+                    <td class="label">المكتب</td>
+                    <td class="value">{{ENGINEER_OFFICE}}</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Other Participants -->
+        <div class="participants-section">
+            <div class="participants-title">المشاركون الآخرون في المهمة</div>
+            <table class="participants-table">
+                <thead>
+                    <tr>
+                        <th class="name-col">الاسم واللقب</th>
+                        <th class="nni-col">الرقم الوطني</th>
+                        <th class="profession-col">المهنة</th>
+                        <th class="ministry-col">الوزارة</th>
+                        <th class="role-col">الدور في المهمة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{OTHER_PARTICIPANTS}}
+                    <tr>
+                        <td colspan="5" style="text-align: center; font-style: italic; color: #666;">لا يوجد مشاركون آخرون</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Signature Section -->
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-name">{{SIGNER_NAME}}<br/>المديرة العامة</div>
+                <div class="signature-image" style="background-image: url('{{SIGNATURE_BASE64}}');"></div>
+                <div class="stamp" style="background-image: url('{{STAMP_BASE64}}');"></div>
+            </div>
+        </div>
+
+        <!-- QR Code -->
+        <div class="qr-code"></div>
+        <div class="qr-label">Scan pour vérification</div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-addresses">
+                <div class="footer-french">
+                    Ilot V, lot.90, Rue Gandhi, BP : 7985 Nouakchott, Mauritanie
+                </div>
+                <div class="footer-arabic">
+                    إيلوت V، رقم 90، شارع غاندي، ص.ب : 7985 نواكشوط - موريتانيا
+                </div>
+            </div>
+            <div class="footer-contact">
+                📞 00.222 45 24 14 78 &nbsp;&nbsp;&nbsp;&nbsp; ✉ info@anesp.mr &nbsp;&nbsp;&nbsp;&nbsp; 🌐 anesp.mr
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

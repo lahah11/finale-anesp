@@ -1,0 +1,26 @@
+extraEnv:
+  ENV_NAME: "uat"
+  FRONT_URL: https://som.uat.anetat.com
+  UPLOAD_PATH: /app/data/uploads 
+  MAX_FILE_SIZE: 5242880
+  PORT: 3000
+
+redis:
+  enabled: false
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 8Gi
+  mountPath: /app/data
+
+postgresql:
+  primary:
+    initdb:
+      scriptsConfigMap: "som-backend-initdb-scripts"
+
+envFromSecrets:
+  - app-credentials
+
+initAppDatabase:
+  enabled: true
